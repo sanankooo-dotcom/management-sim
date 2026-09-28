@@ -1,1040 +1,1580 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>マネジメントシミュレーション - コンビニ経営</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Noto Sans JP', 'Inter', sans-serif;
-            user-select: none;
-        }
-        /* Hide scrollbar for clean tab browsing */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        /* Custom game visual effects */
-        .scan-flash {
-            animation: flash 0.25s ease-out;
-        }
-        @keyframes flash {
-            0% { background-color: rgba(59, 130, 246, 0.4); }
-            100% { background-color: transparent; }
-        }
-        .customer-pop {
-            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        @keyframes popIn {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-/* main に下部ナビ分の余白を確実に確保するユーティリティ */
-.safe-bottom {
-  /* nav の高さ 4rem (h-16) + デバイスのセーフエリア（ある場合）を足す */
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4rem);
-}
-
-/* ── 追加するCSS（head内の<style>の末尾に追加） ── */
-:root { --app-nav-height: 4rem; /* nav の高さ（h-16相当 = 4rem） */ }
-
-body {
-  /* fixed bottom ナビの高さ + iPhone等のセーフエリアを足して
-     全体スクロールの最下部がナビに被らないようにする */
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--app-nav-height));
-  /* 既に body に高さ関連の指定があれば上書きしないよう注意してください */
-}
-
-/* ナビ自体の高さを変えたときは --app-nav-height を合わせて更新 */
-nav[role="navigation"], nav {
-  height: var(--app-nav-height);
-}
-nav > div { height: 100%; } /* 内コンテナを縦中央に保つ */
-
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>マネジメントシミュレーション</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & M PLUS Rounded 1c -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'M PLUS Rounded 1c', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .pos-font {
+      font-family: 'DotGothic16', monospace;
+    }
+    /* uriba.png 忠実再現用破線枠スタイル */
+    .uriba-grid-cell {
+      border: 2px dashed #1a202c;
+      transition: all 0.15s ease-in-out;
+    }
+    .uriba-grid-cell:hover {
+      background-color: rgba(59, 130, 246, 0.08);
+    }
+    /* カスタムスクロールバー */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    /* レシートアニメーション */
+    @keyframes slidePaper {
+      0% { transform: translateY(12px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    .animate-receipt {
+      animation: slidePaper 0.25s ease-out forwards;
+    }
+  </style>
 </head>
-<body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-100 text-slate-800 flex flex-col h-screen overflow-hidden">
 
-    <!-- Top Header -->
-    <header class="bg-emerald-700 text-white shadow-md p-3 px-4 flex justify-between items-center z-10">
-        <div class="flex items-center space-x-3">
-            <i class="fa-solid font-bold text-2xl fa-store text-yellow-300"></i>
-            <div>
-                <h1 class="text-lg font-bold leading-tight">マネジメントシミュレーション</h1>
-                <p class="text-xs text-emerald-100">コンビニ店舗経営ゲーム</p>
-            </div>
-        </div>
-
-        <div class="flex items-center space-x-4">
-            <!-- Day & Time Display -->
-            <div class="bg-emerald-900/60 border border-emerald-500/30 px-3 py-1.5 rounded-lg flex items-center space-x-3 text-sm font-mono">
-                <div>
-                    <span class="text-emerald-300 text-xs block">DAY</span>
-                    <span id="display-day" class="font-bold text-base text-yellow-300">1</span>
-                </div>
-                <div class="h-6 w-px bg-emerald-600"></div>
-                <div>
-                    <span class="text-emerald-300 text-xs block">TIME</span>
-                    <span id="display-time" class="font-bold text-base text-white">08:00</span>
-                </div>
-            </div>
-
-            <!-- Money Display -->
-            <div class="bg-emerald-900/60 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-sm font-mono hidden sm:block">
-                <span class="text-emerald-300 text-xs block">所持金</span>
-                <span id="display-cash" class="font-bold text-base text-emerald-200">¥100,000</span>
-            </div>
-
-            <!-- Open / Close Button -->
-            <button id="btn-toggle-store" onclick="toggleStoreOpen()" class="bg-amber-500 hover:bg-amber-600 active:scale-95 transition-all text-white font-bold py-2 px-4 rounded-lg shadow flex items-center space-x-1.5 text-sm">
-                <i id="store-btn-icon" class="fa-solid fa-door-open"></i>
-                <span id="store-btn-text">開店する</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- Cash Mobile Banner -->
-    <div class="bg-slate-800 text-slate-200 px-4 py-1 flex justify-between items-center text-xs sm:hidden font-mono border-b border-slate-700">
-        <span>所持金: <strong id="display-cash-mobile" class="text-emerald-400 font-bold">¥100,000</strong></span>
-        <span>本日売上: <span id="display-daily-sales" class="text-yellow-400">¥0</span></span>
+  <!-- ヘッダー（仕様準拠：タイトル、Day、Time、所持金、開店/閉店ボタン） -->
+  <header class="bg-white border-b border-slate-300 shadow-sm px-4 py-2 flex flex-wrap items-center justify-between gap-2 z-20">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow">
+        🏪
+      </div>
+      <div>
+        <h1 class="text-base sm:text-lg font-extrabold text-slate-800 tracking-tight leading-none">マネジメントシミュレーション</h1>
+        <p class="text-xs text-slate-500 font-medium">コンビニ・リテール経営管理システム</p>
+      </div>
     </div>
 
-    <!-- Main Content Panels -->
- <main class="flex-1 overflow-y-auto relative p-3 sm:p-4 pb-20 safe-bottom no-scrollbar max-w-6xl w-full mx-auto">
+    <!-- ステータスバー -->
+    <div class="flex items-center gap-3 sm:gap-6 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl shadow-inner text-sm font-semibold">
+      <div class="flex items-center space-x-1.5">
+        <span class="text-xs font-bold text-slate-400">日付</span>
+        <span id="headerDay" class="text-blue-600 font-black tracking-wide">Day 1</span>
+      </div>
+      <div class="flex items-center space-x-1.5">
+        <span class="text-xs font-bold text-slate-400">時間</span>
+        <span id="headerTime" class="text-slate-700 font-black font-mono">08:00</span>
+      </div>
+      <div class="flex items-center space-x-1.5">
+        <span class="text-xs font-bold text-slate-400">所持金</span>
+        <span id="headerMoney" class="text-emerald-600 font-black font-mono text-base">¥300,000</span>
+      </div>
+      <div class="hidden md:flex items-center space-x-1.5">
+        <span class="text-xs font-bold text-slate-400">店内客</span>
+        <span id="headerCustomerCount" class="text-amber-600 font-black font-mono">0人</span>
+      </div>
+    </div>
+
+    <!-- 開店 / 閉店 切り替えボタン & チュートリアルボタン -->
+    <div class="flex items-center space-x-2">
+      <button id="tutorialBtn" onclick="openTutorialModal()" class="px-2.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-lg transition" title="マニュアル">
+        ❓ ヘルプ
+      </button>
+      <button id="openCloseBtn" onclick="toggleStoreOpen()" class="px-4 py-1.5 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 bg-emerald-600 hover:bg-emerald-700 active:scale-95 flex items-center gap-1.5">
+        <span id="statusIndicator" class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>
+        <span id="openCloseLabel">開店する</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 overflow-hidden relative">
+
+    <!-- 1. 売り場セクション (uriba.png 5x5 完全再現) -->
+    <section id="section-uriba" class="w-full h-full p-2 sm:p-4 flex flex-col items-center justify-between overflow-y-auto">
+      <div class="w-full max-w-2xl bg-white p-3 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center">
+        <div class="w-full flex items-center justify-between mb-2">
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">フロアマップ（配置・品出し）</div>
+          <div class="text-xs text-slate-500">点線枠をクリックで棚の購入・配置・陳列</div>
+        </div>
+
+        <!-- 5x5 グリッド（外枠ブラック＋出入口：添付uriba.png準拠） -->
+        <div class="relative w-full max-w-[480px] aspect-square border-[3px] border-slate-900 bg-white p-1.5 flex flex-col justify-between rounded-sm">
+          <div id="uribaGrid" class="grid grid-cols-5 grid-rows-5 gap-1.5 w-full h-full">
+            <!-- 25マス動的レンダリング -->
+          </div>
+          <!-- 出入口ラベル（uriba.pngの最下部中央の出入口アイコンを忠実再現） -->
+          <div class="absolute -bottom-3.5 left-1/2 -translate-x-1/2 bg-white border-2 border-slate-900 px-3 py-0.5 rounded-md text-xs font-black tracking-widest text-slate-900 shadow">
+            出入口
+          </div>
+        </div>
+
+        <!-- 下部補足レジェンド -->
+        <div class="mt-5 flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-slate-600">
+          <div class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded bg-blue-100 border border-blue-500"></span>
+            <span>冷蔵棚(デイリー専用)</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded bg-amber-100 border border-amber-500"></span>
+            <span>商品棚(非デイリー専用)</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded border-2 border-dashed border-slate-400"></span>
+            <span>空きスペース</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. レジセクション (仕様：3台管理 + regi.png 完全再現POSレジビュー) -->
+    <section id="section-regi" class="w-full h-full p-2 sm:p-4 overflow-y-auto hidden">
+      <!-- レジ一覧 (3台設置カード) -->
+      <div id="regiListView" class="max-w-4xl mx-auto space-y-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <h2 class="font-bold text-slate-800 text-lg">レジカウンター管理</h2>
+            <p class="text-xs text-slate-500">最大3台までPOSレジを導入可能（設置費用: ¥50,000 / 台）</p>
+          </div>
+          <div class="text-xs bg-slate-100 px-3 py-1.5 rounded-lg font-semibold text-slate-600">
+            全レジ待機列: <span id="totalQueueBadge" class="text-blue-600 font-bold">0人</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="registersListContainer">
+          <!-- 3台のレジ枠が動的に生成される -->
+        </div>
+      </div>
+
+      <!-- regi.pngをリアルに組み込んだPOS端末操作画面 (単一レジ操作モード) -->
+      <div id="regiTerminalView" class="max-w-2xl mx-auto hidden flex flex-col items-center">
+        <!-- 戻るボタンバー -->
+        <div class="w-full flex items-center justify-between mb-3 px-2">
+          <button onclick="exitRegisterTerminal()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1">
+            ◀ レジ一覧へ戻る
+          </button>
+          <div class="text-sm font-bold text-slate-700">
+            操作中: <span id="currentRegisterTitle" class="text-emerald-600">レジ 1</span>
+          </div>
+          <div id="customerWaitingBadge" class="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-bold">
+            待機列: 0人
+          </div>
+        </div>
+
+        <!-- 添付画像 regi.png 準拠 POSレジマシンデザインコンテナ -->
+        <div class="w-full max-w-[500px] bg-black p-3 sm:p-4 rounded-3xl shadow-2xl border-4 border-slate-900 flex flex-col items-center select-none">
+          
+          <!-- 上部：ディスプレイ画面 (regi.pngの大きな白枠液晶スクリーン) -->
+          <div class="w-full bg-white border-[8px] border-black rounded-lg p-3 sm:p-4 flex flex-col justify-between shadow-inner min-h-[300px] text-slate-800">
+            
+            <!-- レジ画面ヘッダー部 -->
+            <div class="border-b-2 border-slate-800 pb-1 flex justify-between items-center text-xs font-bold pos-font">
+              <span id="posScreenHeaderNo">REGISTER #1 [MANUAL]</span>
+              <span id="posScreenCustomerInfo">来店客: お待ちください</span>
+            </div>
+
+            <!-- カゴ商品・レジ明細リスト表示エリア -->
+            <div id="posScreenBody" class="flex-1 overflow-y-auto my-2 p-1.5 bg-slate-50 border border-slate-200 rounded text-xs pos-font space-y-1">
+              <div class="text-slate-400 text-center py-6">現在、お客様は並んでいません</div>
+            </div>
+
+            <!-- ディスプレイ下部情報（仕様準拠：かご内商品数残り、合計金額） -->
+            <div class="bg-slate-100 border-2 border-slate-800 p-2.5 rounded font-mono">
+              <div class="flex justify-between items-center text-xs font-bold text-slate-600 mb-0.5">
+                <span>かご内商品数残り:</span>
+                <span id="posBasketRemain" class="text-sm font-black text-blue-600">0 点</span>
+              </div>
+              <div class="flex justify-between items-center text-base sm:text-lg font-black text-slate-900 border-t border-slate-300 pt-1">
+                <span>合計金額:</span>
+                <span id="posTotalAmount" class="text-emerald-700 font-extrabold text-xl">¥0</span>
+              </div>
+            </div>
+
+            <!-- アクションボタン（仕様：スキャン、会計する） -->
+            <div class="grid grid-cols-2 gap-2 mt-2">
+              <button id="posScanBtn" onclick="posScanItem()" class="py-2.5 px-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 text-white font-bold rounded-lg shadow text-xs sm:text-sm tracking-wide transition flex items-center justify-center gap-1">
+                <span>⚡ スキャン</span>
+              </button>
+              <button id="posPayBtn" onclick="posCheckoutItem()" disabled class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-40 text-white font-bold rounded-lg shadow text-xs sm:text-sm tracking-wide transition flex items-center justify-center gap-1">
+                <span>💴 会計する</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 下部：キーボード部 (regi.pngの黄色い台座、黒丸9つのテンキー、青/赤/緑ボタン、レシート排出口) -->
+          <div class="w-full bg-[#fffa8b] border-[6px] border-black rounded-b-xl mt-1.5 p-3 sm:p-4 grid grid-cols-3 gap-2 sm:gap-4 items-center shadow-lg relative">
+            
+            <!-- 9つの黒丸テンキー (3×3) -->
+            <div class="grid grid-cols-3 gap-1.5 sm:gap-2 justify-items-center">
+              <button onclick="playKeyBeep()" class="w-7 h-7 sm:w-9 sm:h-9 bg-black rounded-full shadow-md active:scale-90 hover:bg-slate-800 border-2 border-slate-200 transition"></button>
+              <button onclick="playKeyBeep()" class="w-7 h-7 sm:w-9 sm:h-9 bg-black rounded-full shadow-md active:scale-90 hover:bg-slate-800 border-2 border-slate-200 transition"></button>
+              <button onclick="playKeyBeep()" class="w-7 h-7 sm:w-9 sm:h-9 bg-black rounded-full shadow-md active:scale-90 hover:bg-slate-800 border-2 border-slate-200 transition"></button>
+              <button onclick="playKeyBeep()" class="w-7 h-7 sm:w-9 sm:h-9 bg-black rounded-full shadow-md active:scale-90 hover:bg-slate-800 border-2 border-slate-200 transition"></button>
+              <button onclick="playKeyBeep()" class="w-7 h-7 sm:w-9 sm:h-9 bg-black rounded-full shadow-md active:scale-90 hover:bg-slate-800 border-2 border-slate-200 transition"></button>
+              <button onclick="playKeyBeep()" class="w-7 h-7 sm:w-9 sm:h-9 bg-black rounded-full shadow-md active:scale-90 hover:bg-slate-800 border-2 border-slate-200 transition"></button>
+              <button onclick="playKeyBeep()" class="w-7 h-7 sm:w-9 sm:h-9 bg-black rounded-full shadow-md active:scale-90 hover:bg-slate-800 border-2 border-slate-200 transition"></button>
+              <button onclick="playKeyBeep()" class="w-7 h-7 sm:w-9 sm:h-9 bg-black rounded-full shadow-md active:scale-90 hover:bg-slate-800 border-2 border-slate-200 transition"></button>
+              <button onclick="playKeyBeep()" class="w-7 h-7 sm:w-9 sm:h-9 bg-black rounded-full shadow-md active:scale-90 hover:bg-slate-800 border-2 border-slate-200 transition"></button>
+            </div>
+
+            <!-- 中央：青・赤・緑の角丸長方形ボタン (regi.png忠実再現) -->
+            <div class="flex flex-col gap-2 justify-center items-center">
+              <button onclick="posScanItem()" class="w-full h-7 sm:h-9 bg-[#4a7cb9] hover:bg-[#3d679b] border-2 border-white rounded-lg shadow-md active:translate-y-0.5 text-[10px] font-bold text-white uppercase tracking-tighter" title="クイックスキャン">
+                SCAN
+              </button>
+              <button onclick="posCancelCurrentBasket()" class="w-full h-7 sm:h-9 bg-[#b84d4d] hover:bg-[#9a3f3f] border-2 border-white rounded-lg shadow-md active:translate-y-0.5 text-[10px] font-bold text-white uppercase tracking-tighter" title="キャンセル">
+                CLEAR
+              </button>
+              <button onclick="posCheckoutItem()" class="w-full h-7 sm:h-9 bg-[#8db353] hover:bg-[#779944] border-2 border-white rounded-lg shadow-md active:translate-y-0.5 text-[10px] font-bold text-white uppercase tracking-tighter" title="会計実行">
+                ENTER
+              </button>
+            </div>
+
+            <!-- 右側：レシート排出口部 (水色台座＋レシート文字＋黒い排出スリット) -->
+            <div class="bg-[#c4daf8] border border-blue-300 rounded-md p-2 flex flex-col items-center justify-center shadow-md relative min-h-[85px]">
+              <span class="text-[11px] font-bold text-slate-800 mb-1">レシート</span>
+              <!-- 排出スリット (六角形ライクな黒いスリット) -->
+              <div class="w-full h-3.5 bg-black rounded-full shadow-inner relative flex items-center justify-center overflow-visible">
+                <!-- 発行中レシートペーパーのニョキッとした演出 -->
+                <div id="receiptPaperEffect" class="hidden absolute bottom-2 w-14 bg-white border border-slate-400 text-[8px] p-0.5 text-center shadow-lg font-mono text-slate-600 rounded-t animate-receipt">
+                  RECEIPT✓
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 在庫管理セクション (仕様準拠カテゴリ・発注・補充) -->
+    <section id="section-inventory" class="w-full h-full p-2 sm:p-4 overflow-y-auto hidden">
+      <div class="max-w-5xl mx-auto space-y-4">
         
-        <!-- ================= 1. 売り場 (Sales Floor) ================= -->
-        <section id="view-floor" class="space-y-4">
-            <div class="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-slate-200">
-                <h2 class="font-bold text-slate-700 flex items-center space-x-2">
-                    <i class="fa-solid fa-shop text-emerald-600"></i>
-                    <span>売り場棚状況</span>
-                </h2>
-                <div class="text-xs text-slate-500">
-                    棚の在庫が切れるとお客さんが購入できません
-                </div>
-            </div>
+        <!-- ヘッダ説明＆一括品出しボタン -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="font-bold text-slate-800 text-lg">商品発注＆在庫管理マスター</h2>
+            <p class="text-xs text-slate-500">バックヤードへの商品納品・売り場への一括補充が可能です</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="restockAllShelves()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-lg text-xs shadow transition flex items-center gap-1.5">
+              <span>📦 バックヤードから売場へ全補充</span>
+            </button>
+          </div>
+        </div>
 
-            <div id="floor-shelves-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Shelves dynamically generated here -->
-            </div>
-        </section>
+        <!-- カテゴリ切り替えタブ -->
+        <div class="flex border-b border-slate-200 bg-white rounded-t-xl px-2 pt-2 gap-1" id="invCategoryTabs">
+          <button onclick="selectInvCategory('デイリー')" class="px-4 py-2 font-bold text-xs sm:text-sm border-b-2 border-emerald-600 text-emerald-600 category-tab active" data-cat="デイリー">
+            🍙 デイリー（米飯・パン）
+          </button>
+          <button onclick="selectInvCategory('非デイリー')" class="px-4 py-2 font-bold text-xs sm:text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-800 category-tab" data-cat="非デイリー">
+            🍫 非デイリー（お菓子・ドリンク）
+          </button>
+          <button onclick="selectInvCategory('備品')" class="px-4 py-2 font-bold text-xs sm:text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-800 category-tab" data-cat="備品">
+            🗄️ 備品（陳列棚）
+          </button>
+        </div>
 
-        <!-- ================= 2. レジ (Checkout / Register) ================= -->
-        <section id="view-register" class="hidden space-y-4">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                
-                <!-- Left: Customer Line & Current Customer Info -->
-                <div class="lg:col-span-1 space-y-4">
-                    <!-- Queue Status -->
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                        <div class="flex justify-between items-center mb-3">
-                            <h3 class="font-bold text-slate-700 flex items-center space-x-2">
-                                <i class="fa-solid fa-users text-blue-600"></i>
-                                <span>レジ待機列</span>
-                            </h3>
-                            <span id="queue-count-badge" class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded-full">待機 0人</span>
-                        </div>
+        <!-- 商品一覧テーブル -->
+        <div class="bg-white rounded-b-xl border border-t-0 border-slate-200 shadow-sm overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm border-collapse min-w-[600px]">
+            <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4">中カテゴリ</th>
+                <th class="py-3 px-4">商品名</th>
+                <th class="py-3 px-4 text-center">仕入れ原価</th>
+                <th class="py-3 px-4 text-center">販売価格</th>
+                <th class="py-3 px-4 text-center">バック在庫</th>
+                <th class="py-3 px-4 text-center">売り場陳列</th>
+                <th class="py-3 px-4 text-center w-52">発注数量・注文</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody" class="divide-y divide-slate-100 text-slate-700">
+              <!-- 動的生成 -->
+            </tbody>
+          </table>
+        </div>
 
-                        <!-- Customer Visual Queue -->
-                        <div id="customer-queue-visual" class="flex items-center space-x-2 overflow-x-auto p-2 bg-slate-50 rounded-lg min-h-[70px] border border-slate-100">
-                            <span class="text-xs text-slate-400 w-full text-center">現在並んでいる客はいません</span>
-                        </div>
-                    </div>
+      </div>
+    </section>
 
-                    <!-- Current Customer Profile Card -->
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
-                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">接客中の客情報</h3>
-                        
-                        <div id="active-customer-card" class="hidden">
-                            <div class="flex items-center space-x-3 mb-2">
-                                <div id="cust-avatar" class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold border-2 border-emerald-300">
-                                    <i class="fa-solid fa-user"></i>
-                                </div>
-                                <div>
-                                    <div id="cust-demo-title" class="font-bold text-slate-800 text-sm">20代 男性 (会社員)</div>
-                                    <div class="text-xs text-slate-500"><span id="cust-type-badge" class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">流動客</span></div>
-                                </div>
-                            </div>
-                            <p id="cust-dialogue" class="text-xs italic text-slate-600 bg-slate-50 p-2 rounded border border-slate-100">
-                                「よろしくお願いします。」
-                            </p>
-                        </div>
+    <!-- 4. 事務セクション (諸費用の支払い・アルバイト雇用・金額設定) -->
+    <section id="section-office" class="w-full h-full p-2 sm:p-4 overflow-y-auto hidden">
+      <div class="max-w-5xl mx-auto space-y-4">
+        
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <h2 class="font-bold text-slate-800 text-lg">店舗事務・会計・人事管理</h2>
+          <p class="text-xs text-slate-500">価格調整、アルバイトスタッフの雇用、諸経費・日次決算の確認</p>
+        </div>
 
-                        <div id="active-customer-empty" class="text-center py-6 text-slate-400 text-sm">
-                            <i class="fa-solid fa-user-slash text-2xl mb-1 text-slate-300 block"></i>
-                            レジに客がいません
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right: Register Screen & Terminal -->
-                <div class="lg:col-span-2">
-                    <div class="bg-slate-900 text-white rounded-xl shadow-lg border border-slate-800 p-4 sm:p-6 flex flex-col justify-between h-full min-h-[380px]" id="register-terminal">
-                        
-                        <!-- Screen Header -->
-                        <div class="border-b border-slate-800 pb-3 flex justify-between items-center">
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-                                <span class="text-xs font-mono text-slate-400">POS TERMINAL #01</span>
-                            </div>
-                            <span id="auto-scan-indicator" class="text-xs bg-indigo-900 text-indigo-300 border border-indigo-700 px-2 py-0.5 rounded hidden">
-                                <i class="fa-solid fa-robot mr-1"></i>バイト自動スキャン中
-                            </span>
-                        </div>
-
-                        <!-- Basket & Items View -->
-                        <div class="my-4 flex-1">
-                            <div class="text-xs text-slate-400 mb-2 flex justify-between">
-                                <span>かご内商品</span>
-                                <span>残り: <strong id="reg-basket-count" class="text-yellow-400 font-mono text-sm">0</strong> 個</span>
-                            </div>
-
-                            <!-- List of Scanned & Unscanned Items -->
-                            <div id="reg-items-list" class="bg-slate-950 rounded-lg p-3 h-48 overflow-y-auto space-y-1.5 font-mono text-sm border border-slate-800">
-                                <div class="text-slate-600 text-center py-12 text-xs">商品が読み込まれていません</div>
-                            </div>
-                        </div>
-
-                        <!-- Total & Action Controls -->
-                        <div class="border-t border-slate-800 pt-4 space-y-4">
-                            <div class="flex justify-between items-end">
-                                <span class="text-slate-400 text-sm">合計金額 (税込)</span>
-                                <div class="text-right">
-                                    <span class="text-xs text-slate-500 mr-1">JPY</span>
-                                    <span id="reg-total-amount" class="text-3xl font-bold font-mono text-emerald-400">¥0</span>
-                                </div>
-                            </div>
-
-                            <!-- Register Action Buttons -->
-                            <div class="grid grid-cols-2 gap-3">
-                                <button id="btn-scan" onclick="manualScanItem()" disabled class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold py-3 px-4 rounded-lg shadow flex items-center justify-center space-x-2 transition-all">
-                                    <i class="fa-solid fa-barcode"></i>
-                                    <span>スキャン (Space)</span>
-                                </button>
-
-                                <button id="btn-checkout" onclick="checkoutActiveCustomer()" disabled class="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold py-3 px-4 rounded-lg shadow flex items-center justify-center space-x-2 transition-all">
-                                    <i class="fa-solid fa-cash-register"></i>
-                                    <span>会計する (Enter)</span>
-                                </button>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- ================= 3. 在庫管理 (Inventory) ================= -->
-        <section id="view-inventory" class="hidden space-y-4">
-            <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
-                <h2 class="font-bold text-slate-700 flex items-center space-x-2">
-                    <i class="fa-solid fa-boxes-stacked text-amber-600"></i>
-                    <span>在庫・補充・発注管理</span>
-                </h2>
-                <div class="text-xs text-slate-500">
-                    バックヤード在庫から売り場へ補充、または納品発注を行います
-                </div>
-            </div>
-
-            <!-- Category Filter Tabs -->
-            <div class="flex space-x-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar">
-                <button onclick="filterInventoryCategory('all')" class="cat-tab bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap">すべて</button>
-                <button onclick="filterInventoryCategory('米飯')" class="cat-tab bg-slate-200 text-slate-700 hover:bg-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap">デイリー: 米飯</button>
-                <button onclick="filterInventoryCategory('パン')" class="cat-tab bg-slate-200 text-slate-700 hover:bg-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap">デイリー: パン</button>
-                <button onclick="filterInventoryCategory('お菓子')" class="cat-tab bg-slate-200 text-slate-700 hover:bg-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap">非デイリー: お菓子</button>
-                <button onclick="filterInventoryCategory('ドリンク')" class="cat-tab bg-slate-200 text-slate-700 hover:bg-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap">非デイリー: ドリンク</button>
-            </div>
-
-            <!-- Inventory Items Grid -->
-            <div id="inventory-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <!-- Inventory Items inserted here -->
-            </div>
-        </section>
-
-        <!-- ================= 4. 事務 (Office & Financials) ================= -->
-        <section id="view-office" class="hidden space-y-4">
-            
-            <!-- Daily Stats Header -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                    <span class="text-xs text-slate-400 font-bold block">本日売上 (Sales)</span>
-                    <span id="office-daily-sales" class="text-xl font-bold text-emerald-600 font-mono">¥0</span>
-                </div>
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                    <span class="text-xs text-slate-400 font-bold block">本日仕入経費 (Expenses)</span>
-                    <span id="office-daily-expenses" class="text-xl font-bold text-rose-600 font-mono">¥0</span>
-                </div>
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                    <span class="text-xs text-slate-400 font-bold block">雇用アルバイト数</span>
-                    <span id="office-staff-count" class="text-xl font-bold text-indigo-600 font-mono">0人</span>
-                </div>
-            </div>
-
-            <!-- Staff Hiring Section -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
-                <h3 class="font-bold text-slate-700 flex items-center space-x-2 border-b pb-2">
-                    <i class="fa-solid fa-user-plus text-indigo-600"></i>
-                    <span>アルバイト雇用設定</span>
+        <!-- 3カラムレイアウト -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+          <!-- アルバイト雇用 -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                  <span>🧑‍💼 アルバイト雇用</span>
                 </h3>
-                <p class="text-xs text-slate-500">
-                    アルバイトを雇用すると毎日の閉店時に日給が自動で引き落とされますが、作業が自動化されます。
-                </p>
+                <span class="text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                  時給 ¥1,050
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 mb-3">
+                スタッフを雇用してレジに配置すると、無人で自動スキャン・自動会計を行ってくれます。
+              </p>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    <!-- Register Staff -->
-                    <div class="border rounded-lg p-3 bg-slate-50 flex justify-between items-center">
-                        <div>
-                            <div class="font-bold text-sm text-slate-800">レジスタッフ</div>
-                            <div class="text-xs text-slate-500">レジのスキャンを自動化 (時給: ¥1,000/日)</div>
-                            <div class="text-xs text-indigo-600 font-bold mt-1">雇用中: <span id="staff-reg-count">0</span>人</div>
-                        </div>
-                        <div class="flex space-x-1">
-                            <button onclick="hireStaff('register')" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded font-bold hover:bg-emerald-700">+ 雇う</button>
-                            <button onclick="fireStaff('register')" class="bg-slate-300 text-slate-700 text-xs px-2 py-1.5 rounded font-bold hover:bg-slate-400">- 解雇</button>
-                        </div>
-                    </div>
-
-                    <!-- Restock Staff -->
-                    <div class="border rounded-lg p-3 bg-slate-50 flex justify-between items-center">
-                        <div>
-                            <div class="font-bold text-sm text-slate-800">品出しスタッフ</div>
-                            <div class="text-xs text-slate-500">バックヤードから売り場へ自動品出し (時給: ¥1,000/日)</div>
-                            <div class="text-xs text-indigo-600 font-bold mt-1">雇用中: <span id="staff-stock-count">0</span>人</div>
-                        </div>
-                        <div class="flex space-x-1">
-                            <button onclick="hireStaff('restock')" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded font-bold hover:bg-emerald-700">+ 雇う</button>
-                            <button onclick="fireStaff('restock')" class="bg-slate-300 text-slate-700 text-xs px-2 py-1.5 rounded font-bold hover:bg-slate-400">- 解雇</button>
-                        </div>
-                    </div>
+              <div class="space-y-2 text-xs">
+                <div class="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
+                  <span class="text-slate-600 font-semibold">現在雇用数:</span>
+                  <span id="officeStaffCount" class="font-bold text-slate-800">0 名</span>
                 </div>
+                <div class="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
+                  <span class="text-slate-600 font-semibold">1日(14h)の人件費/名:</span>
+                  <span class="font-bold text-slate-800">¥14,700</span>
+                </div>
+              </div>
             </div>
 
-            <!-- Price Setting Section -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
-                <h3 class="font-bold text-slate-700 flex items-center space-x-2 border-b pb-2">
-                    <i class="fa-solid fa-tags text-amber-600"></i>
-                    <span>商品販売価格設定</span>
-                </h3>
-                <p class="text-xs text-slate-500">
-                    販売価格を高くすると利幅が増えますが、高すぎるとお客さんの購入意欲が低下します。
-                </p>
+            <div class="mt-4 pt-3 border-t border-slate-100 flex gap-2">
+              <button onclick="hireStaff()" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-lg text-xs transition">
+                ＋ 雇用する
+              </button>
+              <button onclick="fireStaff()" class="py-2 px-3 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-lg text-xs transition">
+                解雇
+              </button>
+            </div>
+          </div>
 
-                <div id="price-settings-list" class="space-y-2 max-h-80 overflow-y-auto pr-1">
-                    <!-- Dynamic price setting rows -->
+          <!-- 諸費用・固定費 -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+              <h3 class="font-bold text-slate-800 text-sm mb-2 flex items-center gap-1.5">
+                <span>🏢 店舗固定費・日次経費</span>
+              </h3>
+              <p class="text-xs text-slate-500 mb-3">
+                毎日22:00の閉店時に自動精算されます。
+              </p>
+
+              <div class="space-y-2 text-xs">
+                <div class="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
+                  <span class="text-slate-600 font-semibold">テナント家賃 / 日:</span>
+                  <span class="font-bold text-slate-800">¥15,000</span>
                 </div>
+                <div class="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
+                  <span class="text-slate-600 font-semibold">水道光熱費 / 日:</span>
+                  <span class="font-bold text-slate-800">¥6,000</span>
+                </div>
+                <div class="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
+                  <span class="text-slate-600 font-semibold">本日の人件費概算:</span>
+                  <span id="officeDailyLaborCost" class="font-bold text-red-600">¥0</span>
+                </div>
+                <div class="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
+                  <span class="text-slate-600 font-semibold">本日の売上累計:</span>
+                  <span id="officeDailySales" class="font-bold text-emerald-600">¥0</span>
+                </div>
+              </div>
             </div>
 
-        </section>
+            <div class="mt-4 pt-3 border-t border-slate-100 text-right">
+              <span class="text-[11px] text-slate-400 font-medium">※黒字経営を維持しましょう</span>
+            </div>
+          </div>
 
-    </main>
+          <!-- 販売価格一括設定・利益率 -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+              <h3 class="font-bold text-slate-800 text-sm mb-2 flex items-center gap-1.5">
+                <span>🏷️ 価格戦略・マークアップ</span>
+              </h3>
+              <p class="text-xs text-slate-500 mb-3">
+                売価を高めると利益率は向上しますが、来客の購入意欲（客単価・客数）に影響します。
+              </p>
 
-    <!-- Bottom Navigation Bar -->
-    <nav class="bg-white border-t border-slate-200 fixed bottom-0 left-0 right-0 z-20">
-        <div class="max-w-md mx-auto flex justify-around items-center h-16">
-            
-            <button onclick="switchTab('floor')" id="nav-btn-floor" class="nav-tab text-emerald-600 flex flex-col items-center justify-center w-full h-full space-y-0.5">
-                <i class="fa-solid fa-store text-lg"></i>
-                <span class="text-[11px] font-bold">売り場</span>
-            </button>
+              <div class="space-y-3">
+                <div>
+                  <div class="flex justify-between text-xs font-bold mb-1">
+                    <span>標準マージン率 (定価比):</span>
+                    <span id="markupRateLabel" class="text-blue-600">100% (標準)</span>
+                  </div>
+                  <input id="markupSlider" type="range" min="80" max="150" step="5" value="100" onchange="updateMarkupRatio(this.value)" class="w-full accent-blue-600 cursor-pointer">
+                  <div class="flex justify-between text-[10px] text-slate-400 mt-1 font-mono">
+                    <span>80% (特売)</span>
+                    <span>100% (通常)</span>
+                    <span>150% (高価格)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-            <button onclick="switchTab('register')" id="nav-btn-register" class="nav-tab text-slate-400 hover:text-slate-600 flex flex-col items-center justify-center w-full h-full space-y-0.5 relative">
-                <i class="fa-solid fa-cash-register text-lg"></i>
-                <span class="text-[11px] font-bold">レジ</span>
-                <span id="nav-queue-badge" class="absolute top-2 right-6 bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full hidden">0</span>
-            </button>
-
-            <button onclick="switchTab('inventory')" id="nav-btn-inventory" class="nav-tab text-slate-400 hover:text-slate-600 flex flex-col items-center justify-center w-full h-full space-y-0.5">
-                <i class="fa-solid fa-boxes-stacked text-lg"></i>
-                <span class="text-[11px] font-bold">在庫管理</span>
-            </button>
-
-            <button onclick="switchTab('office')" id="nav-btn-office" class="nav-tab text-slate-400 hover:text-slate-600 flex flex-col items-center justify-center w-full h-full space-y-0.5">
-                <i class="fa-solid fa-briefcase text-lg"></i>
-                <span class="text-[11px] font-bold">事務</span>
-            </button>
+            <div class="mt-4 pt-3 border-t border-slate-100">
+              <button onclick="applyMarkupToAll()" class="w-full py-2 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold rounded-lg text-xs transition">
+                全商品の販売価格に反映
+              </button>
+            </div>
+          </div>
 
         </div>
-    </nav>
 
-    <!-- Toast Notification Overlay -->
-    <div id="toast-container" class="fixed top-16 right-4 z-50 space-y-2 pointer-events-none"></div>
+        <!-- 経営ログ・直近メッセージ履歴 -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="font-bold text-slate-800 text-sm mb-2">📜 経営・販売ログ</h3>
+          <div id="officeLogBox" class="h-36 overflow-y-auto bg-slate-50 p-3 rounded-lg text-xs font-mono space-y-1 text-slate-600 border border-slate-200">
+            <div>[08:00] システム起動。準備を整えて「開店する」を押してください。</div>
+          </div>
+        </div>
 
-    <script>
-        /* ==========================================================================
-           GAME MASTER DATA & STATE DEFINITIONS
-           ========================================================================== */
-        
-        // Category Master & Initial Products Data
-        const MASTER_PRODUCTS = [
-            // デイリー : 米飯
-            { id: 'rice_1', mainCat: 'デイリー', subCat: '米飯', name: 'おにぎり(ツナマヨ)', cost: 80, defaultPrice: 130, price: 130, shelfStock: 10, backStock: 20 },
-            { id: 'rice_2', mainCat: 'デイリー', subCat: '米飯', name: 'おにぎり(しゃけ)', cost: 85, defaultPrice: 140, price: 140, shelfStock: 10, backStock: 20 },
-            { id: 'rice_3', mainCat: 'デイリー', subCat: '米飯', name: 'おにぎり(昆布)', cost: 75, defaultPrice: 120, price: 120, shelfStock: 10, backStock: 20 },
-            { id: 'rice_4', mainCat: 'デイリー', subCat: '米飯', name: '弁当(幕の内)', cost: 320, defaultPrice: 500, price: 500, shelfStock: 5, backStock: 10 },
-            { id: 'rice_5', mainCat: 'デイリー', subCat: '米飯', name: '弁当(鮭)', cost: 280, defaultPrice: 450, price: 450, shelfStock: 5, backStock: 10 },
-            { id: 'rice_6', mainCat: 'デイリー', subCat: '米飯', name: '弁当(のり弁)', cost: 250, defaultPrice: 400, price: 400, shelfStock: 5, backStock: 10 },
+      </div>
+    </section>
 
-            // デイリー : パン
-            { id: 'bread_1', mainCat: 'デイリー', subCat: 'パン', name: 'コッペパン(あんこ)', cost: 70, defaultPrice: 120, price: 120, shelfStock: 8, backStock: 15 },
-            { id: 'bread_2', mainCat: 'デイリー', subCat: 'パン', name: 'コッペパン(ピーナッツ)', cost: 70, defaultPrice: 120, price: 120, shelfStock: 8, backStock: 15 },
-            { id: 'bread_3', mainCat: 'デイリー', subCat: 'パン', name: 'アンパン', cost: 65, defaultPrice: 110, price: 110, shelfStock: 8, backStock: 15 },
-            { id: 'bread_4', mainCat: 'デイリー', subCat: 'パン', name: 'ホットドッグ', cost: 120, defaultPrice: 200, price: 200, shelfStock: 6, backStock: 12 },
-            { id: 'bread_5', mainCat: 'デイリー', subCat: 'パン', name: 'サンドイッチ(たまご)', cost: 140, defaultPrice: 230, price: 230, shelfStock: 6, backStock: 12 },
-            { id: 'bread_6', mainCat: 'デイリー', subCat: 'パン', name: 'サンドイッチ(ハムレタス)', cost: 160, defaultPrice: 260, price: 260, shelfStock: 6, backStock: 12 },
+  </main>
 
-            // 非デイリー : お菓子
-            { id: 'snack_1', mainCat: '非デイリー', subCat: 'お菓子', name: 'ポテトチップス(うすしお)', cost: 90, defaultPrice: 150, price: 150, shelfStock: 12, backStock: 25 },
-            { id: 'snack_2', mainCat: '非デイリー', subCat: 'お菓子', name: 'ポテトチップス(コンソメ)', cost: 90, defaultPrice: 150, price: 150, shelfStock: 12, backStock: 25 },
-            { id: 'snack_3', mainCat: '非デイリー', subCat: 'お菓子', name: 'えびせん', cost: 80, defaultPrice: 130, price: 130, shelfStock: 10, backStock: 20 },
-            { id: 'snack_4', mainCat: '非デイリー', subCat: 'お菓子', name: 'チョコレート', cost: 70, defaultPrice: 120, price: 120, shelfStock: 15, backStock: 30 },
-            { id: 'snack_5', mainCat: '非デイリー', subCat: 'お菓子', name: 'クッキー', cost: 100, defaultPrice: 160, price: 160, shelfStock: 10, backStock: 20 },
-            { id: 'snack_6', mainCat: '非デイリー', subCat: 'お菓子', name: '芋けんぴ', cost: 85, defaultPrice: 140, price: 140, shelfStock: 10, backStock: 20 },
+  <!-- 下部ナビゲーション（仕様準拠：売り場・レジ・在庫管理・事務） -->
+  <nav class="bg-white border-t border-slate-300 py-1.5 px-4 shadow-lg z-20">
+    <div class="max-w-md mx-auto grid grid-cols-4 gap-2">
+      <button onclick="switchTab('uriba')" id="nav-btn-uriba" class="nav-button flex flex-col items-center justify-center py-1.5 px-2 rounded-xl text-emerald-600 font-black text-xs transition">
+        <span class="text-lg">🏪</span>
+        <span>売り場</span>
+      </button>
+      <button onclick="switchTab('regi')" id="nav-btn-regi" class="nav-button flex flex-col items-center justify-center py-1.5 px-2 rounded-xl text-slate-500 font-bold text-xs hover:text-slate-800 transition relative">
+        <span class="text-lg">📠</span>
+        <span>レジ</span>
+        <span id="navRegiBadge" class="hidden absolute top-0.5 right-3 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] items-center justify-center font-bold">0</span>
+      </button>
+      <button onclick="switchTab('inventory')" id="nav-btn-inventory" class="nav-button flex flex-col items-center justify-center py-1.5 px-2 rounded-xl text-slate-500 font-bold text-xs hover:text-slate-800 transition">
+        <span class="text-lg">📦</span>
+        <span>在庫管理</span>
+      </button>
+      <button onclick="switchTab('office')" id="nav-btn-office" class="nav-button flex flex-col items-center justify-center py-1.5 px-2 rounded-xl text-slate-500 font-bold text-xs hover:text-slate-800 transition">
+        <span class="text-lg">💼</span>
+        <span>事務</span>
+      </button>
+    </div>
+  </nav>
 
-            // 非デイリー : ドリンク
-            { id: 'drink_1', mainCat: '非デイリー', subCat: 'ドリンク', name: '水', cost: 50, defaultPrice: 100, price: 100, shelfStock: 20, backStock: 40 },
-            { id: 'drink_2', mainCat: '非デイリー', subCat: 'ドリンク', name: 'コーラ', cost: 80, defaultPrice: 140, price: 140, shelfStock: 15, backStock: 30 },
-            { id: 'drink_3', mainCat: '非デイリー', subCat: 'ドリンク', name: 'サイダー', cost: 80, defaultPrice: 140, price: 140, shelfStock: 15, backStock: 30 },
-            { id: 'drink_4', mainCat: '非デイリー', subCat: 'ドリンク', name: '緑茶', cost: 70, defaultPrice: 130, price: 130, shelfStock: 20, backStock: 40 },
-            { id: 'drink_5', mainCat: '非デイリー', subCat: 'ドリンク', name: '麦茶', cost: 70, defaultPrice: 130, price: 130, shelfStock: 20, backStock: 40 },
-            { id: 'drink_6', mainCat: '非デイリー', subCat: 'ドリンク', name: '紅茶', cost: 75, defaultPrice: 140, price: 140, shelfStock: 15, backStock: 30 }
-        ];
+  <!-- 棚設置・商品アサインモーダル -->
+  <div id="shelfModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-4 sm:p-5 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 id="shelfModalTitle" class="font-bold text-base text-slate-800">売り場マスの設定</h3>
+        <button onclick="closeShelfModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+      </div>
 
-        // Customer Demographics Definitions
-        const DEMOGRAPHICS = [
-            { age: '10代', job: '学生', pref: ['お菓子', 'ドリンク', 'パン'], icon: 'fa-graduation-cap', avgBuy: 2 },
-            { age: '20代', job: '会社員', pref: ['米飯', 'ドリンク', 'パン'], icon: 'fa-briefcase', avgBuy: 2 },
-            { age: '30代', job: '会社員', pref: ['米飯', 'ドリンク'], icon: 'fa-user-tie', avgBuy: 3 },
-            { age: '40代', job: '主婦', pref: ['お菓子', 'パン', '米飯'], icon: 'fa-house-user', avgBuy: 4 },
-            { age: '50代', job: '自営業', pref: ['米飯', 'ドリンク'], icon: 'fa-user', avgBuy: 2 },
-            { age: '60代以上', job: 'シニア', pref: ['パン', 'お菓子', '米飯'], icon: 'fa-person-cane', avgBuy: 1 }
-        ];
+      <!-- 空きマスの場合の購入選択肢 -->
+      <div id="shelfModalBuySection" class="space-y-2 hidden">
+        <p class="text-xs text-slate-500">設置する棚を選択してください（備品在庫から消費、ない場合は費用¥20,000）：</p>
+        <button onclick="installShelf('冷蔵棚(デイリー専用)')" class="w-full p-3 bg-blue-50 border-2 border-blue-300 hover:border-blue-600 rounded-xl text-left transition flex items-center justify-between">
+          <div>
+            <div class="font-bold text-blue-900 text-xs sm:text-sm">❄️ 冷蔵棚(デイリー専用)</div>
+            <div class="text-[11px] text-blue-700">米飯・おにぎり・お弁当・パン</div>
+          </div>
+          <span class="text-xs font-bold text-slate-700">¥20,000</span>
+        </button>
+        <button onclick="installShelf('商品棚(非デイリー専用)')" class="w-full p-3 bg-amber-50 border-2 border-amber-300 hover:border-amber-600 rounded-xl text-left transition flex items-center justify-between">
+          <div>
+            <div class="font-bold text-amber-900 text-xs sm:text-sm">🗄️ 商品棚(非デイリー専用)</div>
+            <div class="text-[11px] text-amber-700">お菓子・スナック・ドリンク</div>
+          </div>
+          <span class="text-xs font-bold text-slate-700">¥20,000</span>
+        </button>
+      </div>
 
-        // Game State Variables
-        let gameState = {
-            day: 1,
-            hour: 8,
-            minute: 0,
-            isOpen: false,
-            cash: 100000,
-            dailySales: 0,
-            dailyExpenses: 0,
-            timerId: null,
-            
-            // Products
-            products: JSON.parse(JSON.stringify(MASTER_PRODUCTS)),
+      <!-- 既に棚がある場合の詳細・商品割当・撤去 -->
+      <div id="shelfModalManageSection" class="space-y-3 hidden">
+        <div class="p-2.5 bg-slate-50 rounded-lg text-xs space-y-1">
+          <div class="flex justify-between"><span class="text-slate-500">棚種別:</span><span id="currentShelfType" class="font-bold text-slate-800"></span></div>
+          <div class="flex justify-between"><span class="text-slate-500">陳列商品:</span><span id="currentShelfItemName" class="font-bold text-emerald-600">未設定</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">売り場陳列数:</span><span id="currentShelfStock" class="font-bold text-slate-800">0 / 20個</span></div>
+        </div>
 
-            // Customer Queue at Register
-            customerQueue: [],
-            activeCustomer: null,
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">陳列する商品の選択・変更</label>
+          <select id="shelfAssignSelect" class="w-full text-xs p-2 border border-slate-300 rounded-lg bg-white">
+            <!-- 選択肢を動的注入 -->
+          </select>
+        </div>
 
-            // Active Customer Register State
-            scannedItems: [],
-            unscannedItems: [],
-            
-            // Staff Hiring
-            staff: {
-                register: 0,
-                restock: 0
-            }
-        };
+        <div class="flex gap-2 pt-1">
+          <button onclick="assignItemToShelf()" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs">
+            商品を陳列
+          </button>
+          <button onclick="refillCurrentShelf()" class="py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs">
+            補充する
+          </button>
+        </div>
 
-        // Game Clock Loop (Triggered every 1 sec real time = 5 mins game time)
-        function gameTick() {
-            if (!gameState.isOpen) return;
+        <div class="border-t pt-2">
+          <button onclick="removeShelf()" class="w-full py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-lg text-xs">
+            棚を撤去する
+          </button>
+        </div>
+      </div>
 
-            gameState.minute += 5;
-            if (gameState.minute >= 60) {
-                gameState.minute = 0;
-                gameState.hour++;
-            }
+    </div>
+  </div>
 
-            // Store automatic closing at 22:00
-            if (gameState.hour >= 22) {
-                gameState.hour = 22;
-                gameState.minute = 0;
-                showToast("閉店時間 (22:00) になりました。新規の来客はありません。", "info");
-            }
+  <!-- 日次決算モーダル (22:00閉店時) -->
+  <div id="settlementModal" class="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-3 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4">
+      <div class="text-center border-b pb-3">
+        <span class="text-xs font-black uppercase tracking-wider text-emerald-600">Daily Report</span>
+        <h3 id="settlementDayTitle" class="text-xl font-black text-slate-900">Day 1 決算報告書</h3>
+        <p class="text-xs text-slate-500">本日の営業が終了しました。収支の確認を行ってください。</p>
+      </div>
 
-            // Customer Arrival Logic
-            attemptCustomerSpawn();
+      <div class="space-y-2 text-xs sm:text-sm font-semibold text-slate-700">
+        <div class="flex justify-between p-2 bg-slate-50 rounded-lg">
+          <span>本日総売上高:</span>
+          <span id="settleSales" class="font-bold text-emerald-600">¥0</span>
+        </div>
+        <div class="flex justify-between p-2 bg-slate-50 rounded-lg">
+          <span>仕入れ原価:</span>
+          <span id="settleCost" class="font-bold text-red-500">-¥0</span>
+        </div>
+        <div class="flex justify-between p-2 bg-slate-50 rounded-lg">
+          <span>アルバイト人件費:</span>
+          <span id="settleLabor" class="font-bold text-red-500">-¥0</span>
+        </div>
+        <div class="flex justify-between p-2 bg-slate-50 rounded-lg">
+          <span>店舗家賃 & 水道光熱費:</span>
+          <span id="settleFixed" class="font-bold text-red-500">-¥21,000</span>
+        </div>
+        <div class="flex justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-sm sm:text-base">
+          <span class="font-black text-slate-800">本日の純利益:</span>
+          <span id="settleNetProfit" class="font-black text-emerald-700">¥0</span>
+        </div>
+      </div>
 
-            // Staff Automation Execution
-            executeStaffTasks();
+      <div class="pt-2">
+        <button onclick="startNextDay()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold rounded-xl shadow-lg transition">
+          翌朝 08:00 へ進む ☀️
+        </button>
+      </div>
+    </div>
+  </div>
 
-            // Update UI Screen
-            updateHeaderUI();
-            updateRegisterUI();
+  <!-- チュートリアルモーダル (仕様：開始時にチュートリアルを表示する) -->
+  <div id="tutorialModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
+      <div class="flex items-center space-x-2 border-b pb-3">
+        <span class="text-2xl">🏪</span>
+        <div>
+          <h2 class="text-lg font-black text-slate-800">経営シミュレーションへようこそ！</h2>
+          <p class="text-xs text-slate-500">店舗開店までの基本ステップガイド</p>
+        </div>
+      </div>
+
+      <div class="text-xs sm:text-sm text-slate-600 space-y-3 leading-relaxed">
+        <div class="flex items-start gap-2">
+          <span class="font-black bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">Step 1</span>
+          <div>
+            <strong>売り場に棚を設置＆商品を陳列</strong><br>
+            「売り場」の空きマスをクリックして「冷蔵棚」または「商品棚」を設置し、販売したい商品を割り当てます。
+          </div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs">Step 2</span>
+          <div>
+            <strong>在庫管理で商品を発注</strong><br>
+            「在庫管理」タブから売れ筋の商品を仕入れ、売り場へ陳列・補充しましょう。
+          </div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="font-black bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full text-xs">Step 3</span>
+          <div>
+            <strong>レジを設置＆接客準備</strong><br>
+            「レジ」タブでPOSレジを1台以上設置します。「このレジに入る」であなた自身でスキャン＆会計することも、「事務」でアルバイトを雇って自動会計させることも可能です！
+          </div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-xs">Step 4</span>
+          <div>
+            <strong>「開店する」を押して営業開始！</strong><br>
+            出勤・昼・夕方のピークに合わせて客が来店します。22:00閉店までにしっかり利益を上げましょう！
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t">
+        <button onclick="closeTutorialModal()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold rounded-xl shadow transition">
+          店舗の準備を始める！
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================
+       1. マスターデータ定義（仕様テキスト完全準拠）
+       ========================================================= */
+    const MASTER_PRODUCTS = [
+      // デイリー - 米飯
+      { id: 'onigiri_tuna', major: 'デイリー', minor: '米飯', name: 'おにぎり(ツナマヨ)', cost: 80, price: 130, shelfReq: '冷蔵棚(デイリー専用)' },
+      { id: 'onigiri_salmon', major: 'デイリー', minor: '米飯', name: 'おにぎり(しゃけ)', cost: 85, price: 140, shelfReq: '冷蔵棚(デイリー専用)' },
+      { id: 'onigiri_konbu', major: 'デイリー', minor: '米飯', name: 'おにぎり(昆布)', cost: 75, price: 120, shelfReq: '冷蔵棚(デイリー専用)' },
+      { id: 'bento_makunouchi', major: 'デイリー', minor: '米飯', name: '弁当(幕の内)', cost: 320, price: 540, shelfReq: '冷蔵棚(デイリー専用)' },
+      { id: 'bento_salmon', major: 'デイリー', minor: '米飯', name: '弁当(鮭)', cost: 290, price: 490, shelfReq: '冷蔵棚(デイリー専用)' },
+      { id: 'bento_noriben', major: 'デイリー', minor: '米飯', name: '弁当(のり弁)', cost: 240, price: 390, shelfReq: '冷蔵棚(デイリー専用)' },
+
+      // デイリー - パン
+      { id: 'bread_coppe_anko', major: 'デイリー', minor: 'パン', name: 'コッペパン(あんこ)', cost: 70, price: 120, shelfReq: '冷蔵棚(デイリー専用)' },
+      { id: 'bread_coppe_peanut', major: 'デイリー', minor: 'パン', name: 'コッペパン(ピーナッツ)', cost: 75, price: 130, shelfReq: '冷蔵棚(デイリー専用)' },
+      { id: 'bread_anpan', major: 'デイリー', minor: 'パン', name: 'アンパン', cost: 70, price: 120, shelfReq: '冷蔵棚(デイリー専用)' },
+      { id: 'bread_hotdog', major: 'デイリー', minor: 'パン', name: 'ホットドッグ', cost: 110, price: 180, shelfReq: '冷蔵棚(デイリー専用)' },
+      { id: 'bread_sand_egg', major: 'デイリー', minor: 'パン', name: 'サンドイッチ(たまご)', cost: 140, price: 230, shelfReq: '冷蔵棚(デイリー専用)' },
+      { id: 'bread_sand_lettuce', major: 'デイリー', minor: 'パン', name: 'サンドイッチ(ハムレタス)', cost: 160, price: 260, shelfReq: '冷蔵棚(デイリー専用)' },
+
+      // 非デイリー - お菓子
+      { id: 'snack_chips_salt', major: '非デイリー', minor: 'お菓子', name: 'ポテトチップス(うすしお)', cost: 85, price: 150, shelfReq: '商品棚(非デイリー専用)' },
+      { id: 'snack_chips_consomme', major: '非デイリー', minor: 'お菓子', name: 'ポテトチップス(コンソメ)', cost: 85, price: 150, shelfReq: '商品棚(非デイリー専用)' },
+      { id: 'snack_ebisen', major: '非デイリー', minor: 'お菓子', name: 'えびせん', cost: 70, price: 130, shelfReq: '商品棚(非デイリー専用)' },
+      { id: 'snack_choco', major: '非デイリー', minor: 'お菓子', name: 'チョコレート', cost: 75, price: 140, shelfReq: '商品棚(非デイリー専用)' },
+      { id: 'snack_cookie', major: '非デイリー', minor: 'お菓子', name: 'クッキー', cost: 90, price: 160, shelfReq: '商品棚(非デイリー専用)' },
+      { id: 'snack_imokenpi', major: '非デイリー', minor: 'お菓子', name: '芋けんぴ', cost: 80, price: 140, shelfReq: '商品棚(非デイリー専用)' },
+
+      // 非デイリー - ドリンク
+      { id: 'drink_water', major: '非デイリー', minor: 'ドリンク', name: '水', cost: 50, price: 100, shelfReq: '商品棚(非デイリー専用)' },
+      { id: 'drink_cola', major: '非デイリー', minor: 'ドリンク', name: 'コーラ', cost: 80, price: 150, shelfReq: '商品棚(非デイリー専用)' },
+      { id: 'drink_cider', major: '非デイリー', minor: 'ドリンク', name: 'サイダー', cost: 80, price: 150, shelfReq: '商品棚(非デイリー専用)' },
+      { id: 'drink_green_tea', major: '非デイリー', minor: 'ドリンク', name: '緑茶', cost: 70, price: 140, shelfReq: '商品棚(非デイリー専用)' },
+      { id: 'drink_barley_tea', major: '非デイリー', minor: 'ドリンク', name: '麦茶', cost: 65, price: 130, shelfReq: '商品棚(非デイリー専用)' },
+      { id: 'drink_black_tea', major: '非デイリー', minor: 'ドリンク', name: '紅茶', cost: 75, price: 150, shelfReq: '商品棚(非デイリー専用)' },
+
+      // 備品 - 棚
+      { id: 'shelf_normal', major: '備品', minor: '棚', name: '商品棚(非デイリー専用)', cost: 20000, price: 0, shelfReq: null },
+      { id: 'shelf_fridge', major: '備品', minor: '棚', name: '冷蔵棚(デイリー専用)', cost: 20000, price: 0, shelfReq: null }
+    ];
+
+    /* =========================================================
+       2. ゲーム基本ステート
+       ========================================================= */
+    const gameState = {
+      day: 1,
+      hour: 8,
+      minute: 0,
+      isOpen: false, // 開始時に時計が停止している状態にする
+      money: 300000, // 初期所持金: 30万円
+      staffCount: 0,
+      staffHourlyWage: 1050,
+      dailySales: 0,
+      dailyCost: 0,
+      markupMultiplier: 1.0,
+
+      // 在庫管理マップ: productId -> { back: バックヤード在庫, price: 現在売価 }
+      inventory: {},
+
+      // 売り場マス 5x5 = 25マス (index 0~24)
+      // { type: '冷蔵棚(デイリー専用)' | '商品棚(非デイリー専用)' | null, productId: string | null, count: number }
+      gridShelves: Array(25).fill(null).map(() => ({ type: null, productId: null, count: 0 })),
+
+      // レジ (最大3台)
+      registers: [
+        { installed: false, staffAssigned: false, queue: [] },
+        { installed: false, staffAssigned: false, queue: [] },
+        { installed: false, staffAssigned: false, queue: [] }
+      ],
+
+      // 現在入っているPOSレジ番号 (0, 1, 2 または null)
+      activeRegisterIndex: null,
+
+      // POS操作用内部状態
+      posActiveBasket: null, // 現在スキャン中の客オブジェクト
+      posScannedItems: [],   // スキャン済みアイテム一覧
+      posTotal: 0,
+
+      // 来店中の買い物中客リスト（画面可視化はせず内部で保持）
+      shoppingCustomers: []
+    };
+
+    // 在庫初期化
+    MASTER_PRODUCTS.forEach(p => {
+      gameState.inventory[p.id] = {
+        back: 0,
+        price: p.price
+      };
+    });
+
+    /* =========================================================
+       3. Web Audio API 音響システム（効果音）
+       ========================================================= */
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playTone(freq, duration, type = 'sine', gainVal = 0.1) {
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        // ignore audio errors on restrict
+      }
+    }
+
+    // 各種効果音
+    function playBeepScan() {
+      // バーコードスキャン音「ピッ！」
+      playTone(1800, 0.08, 'sine', 0.2);
+    }
+    function playRegisterOpen() {
+      // 会計チャリーン音
+      playTone(1046.5, 0.08, 'triangle', 0.25);
+      setTimeout(() => playTone(1318.5, 0.15, 'sine', 0.2), 90);
+    }
+    function playKeyBeep() {
+      playTone(700, 0.04, 'sine', 0.05);
+    }
+    function playChime() {
+      // 入店チャイム「ファ・ラ・ド」
+      playTone(698.46, 0.18, 'sine', 0.2);
+      setTimeout(() => playTone(880.00, 0.2, 'sine', 0.2), 200);
+      setTimeout(() => playTone(1046.50, 0.3, 'sine', 0.2), 400);
+    }
+
+    /* =========================================================
+       4. ログ出力ヘルパー
+       ========================================================= */
+    function addLog(msg) {
+      const box = document.getElementById('officeLogBox');
+      const timeStr = `${String(gameState.hour).padStart(2, '0')}:${String(gameState.minute).padStart(2, '0')}`;
+      const div = document.createElement('div');
+      div.textContent = `[${timeStr}] ${msg}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    /* =========================================================
+       5. タブ切り替え処理
+       ========================================================= */
+    function switchTab(tabId) {
+      const sections = ['uriba', 'regi', 'inventory', 'office'];
+      sections.forEach(s => {
+        const el = document.getElementById(`section-${s}`);
+        const btn = document.getElementById(`nav-btn-${s}`);
+        if (s === tabId) {
+          el.classList.remove('hidden');
+          btn.classList.add('text-emerald-600', 'font-black');
+          btn.classList.remove('text-slate-500', 'font-bold');
+        } else {
+          el.classList.add('hidden');
+          btn.classList.remove('text-emerald-600', 'font-black');
+          btn.classList.add('text-slate-500', 'font-bold');
+        }
+      });
+
+      if (tabId === 'inventory') renderInventoryTable();
+      if (tabId === 'regi') renderRegistersList();
+      if (tabId === 'uriba') renderUribaGrid();
+    }
+
+    /* =========================================================
+       6. 売り場 (uriba.png 5x5) ロジック
+       ========================================================= */
+    let selectedCellIndex = null;
+
+    function renderUribaGrid() {
+      const container = document.getElementById('uribaGrid');
+      container.innerHTML = '';
+
+      gameState.gridShelves.forEach((cell, idx) => {
+        const btn = document.createElement('button');
+        btn.className = `uriba-grid-cell w-full h-full rounded flex flex-col items-center justify-center p-1 text-center relative overflow-hidden`;
+
+        if (!cell.type) {
+          // 空きマス
+          btn.innerHTML = `<span class="text-[10px] text-slate-400 font-bold opacity-60">＋ 棚を置く</span>`;
+          btn.classList.add('bg-white');
+        } else {
+          const prod = MASTER_PRODUCTS.find(p => p.id === cell.productId);
+          const isFridge = cell.type.includes('冷蔵棚');
+          btn.classList.add(isFridge ? 'bg-blue-50' : 'bg-amber-50');
+          btn.style.border = isFridge ? '2px solid #3b82f6' : '2px solid #f59e0b';
+
+          btn.innerHTML = `
+            <span class="text-[9px] font-extrabold ${isFridge ? 'text-blue-700' : 'text-amber-700'} leading-tight truncate w-full">
+              ${isFridge ? '❄️ 冷蔵' : '🗄️ 常温'}
+            </span>
+            <span class="text-[10px] font-bold text-slate-800 leading-tight line-clamp-2 mt-0.5">
+              ${prod ? prod.name : '（未陳列）'}
+            </span>
+            <span class="text-[9px] font-mono font-black mt-0.5 ${cell.count > 0 ? 'text-emerald-700' : 'text-red-500'}">
+              在庫:${cell.count}
+            </span>
+          `;
         }
 
-        // Toggle Store Open / Close State
-        function toggleStoreOpen() {
-            if (!gameState.isOpen) {
-                // If starting a new day at or after 22:00
-                if (gameState.hour >= 22) {
-                    startNextDay();
-                }
-                gameState.isOpen = true;
-                if (!gameState.timerId) {
-                    gameState.timerId = setInterval(gameTick, 1000);
-                }
-                showToast("開店しました！お客様のお越しをお待ちしております。", "success");
-            } else {
-                gameState.isOpen = false;
-                if (gameState.timerId) {
-                    clearInterval(gameState.timerId);
-                    gameState.timerId = null;
-                }
-                showToast("一時閉店しました。", "warning");
-            }
-            updateHeaderUI();
+        btn.onclick = () => openShelfModal(idx);
+        container.appendChild(btn);
+      });
+    }
+
+    function openShelfModal(idx) {
+      selectedCellIndex = idx;
+      const cell = gameState.gridShelves[idx];
+      const modal = document.getElementById('shelfModal');
+      const buySec = document.getElementById('shelfModalBuySection');
+      const manageSec = document.getElementById('shelfModalManageSection');
+      const title = document.getElementById('shelfModalTitle');
+
+      modal.classList.remove('hidden');
+
+      if (!cell.type) {
+        title.textContent = `売り場マス [${idx + 1}] に棚を設置`;
+        buySec.classList.remove('hidden');
+        manageSec.classList.add('hidden');
+      } else {
+        title.textContent = `棚の管理 [マス ${idx + 1}]`;
+        buySec.classList.add('hidden');
+        manageSec.classList.remove('hidden');
+
+        document.getElementById('currentShelfType').textContent = cell.type;
+        const prod = MASTER_PRODUCTS.find(p => p.id === cell.productId);
+        document.getElementById('currentShelfItemName').textContent = prod ? prod.name : '（未選択）';
+        document.getElementById('currentShelfStock').textContent = `${cell.count} / 20 個`;
+
+        // 該当棚に設置可能な商品ドロップダウンを生成
+        const select = document.getElementById('shelfAssignSelect');
+        select.innerHTML = '<option value="">-- 陳列商品を選択 --</option>';
+        MASTER_PRODUCTS.filter(p => p.shelfReq === cell.type).forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `${p.name} (バック在庫: ${gameState.inventory[p.id].back}個)`;
+          if (p.id === cell.productId) opt.selected = true;
+          select.appendChild(opt);
+        });
+      }
+    }
+
+    function closeShelfModal() {
+      document.getElementById('shelfModal').classList.add('hidden');
+      selectedCellIndex = null;
+    }
+
+    function installShelf(shelfType) {
+      if (selectedCellIndex === null) return;
+      const cost = 20000;
+      if (gameState.money < cost) {
+        addLog('所持金が不足しており、棚を設置できません。');
+        return;
+      }
+      gameState.money -= cost;
+      gameState.gridShelves[selectedCellIndex] = {
+        type: shelfType,
+        productId: null,
+        count: 0
+      };
+      playKeyBeep();
+      updateHeaderStats();
+      renderUribaGrid();
+      closeShelfModal();
+      addLog(`売り場に「${shelfType}」を設置しました (-¥20,000)`);
+    }
+
+    function removeShelf() {
+      if (selectedCellIndex === null) return;
+      const cell = gameState.gridShelves[selectedCellIndex];
+      // 陳列在庫をバックヤードに戻す
+      if (cell.productId && cell.count > 0) {
+        gameState.inventory[cell.productId].back += cell.count;
+      }
+      gameState.gridShelves[selectedCellIndex] = { type: null, productId: null, count: 0 };
+      renderUribaGrid();
+      closeShelfModal();
+      addLog('棚を撤去しました。在庫はバックヤードへ回収されました。');
+    }
+
+    function assignItemToShelf() {
+      if (selectedCellIndex === null) return;
+      const cell = gameState.gridShelves[selectedCellIndex];
+      const select = document.getElementById('shelfAssignSelect');
+      const newProdId = select.value;
+
+      if (cell.productId && cell.productId !== newProdId && cell.count > 0) {
+        // 前の在庫をバックヤードへ戻す
+        gameState.inventory[cell.productId].back += cell.count;
+        cell.count = 0;
+      }
+
+      cell.productId = newProdId || null;
+      // 在庫があれば最大20個まで即時補充
+      if (cell.productId) {
+        const inv = gameState.inventory[cell.productId];
+        const canTake = Math.min(20 - cell.count, inv.back);
+        cell.count += canTake;
+        inv.back -= canTake;
+      }
+
+      playKeyBeep();
+      renderUribaGrid();
+      closeShelfModal();
+      addLog(`マス[${selectedCellIndex + 1}]に商品を陳列しました。`);
+    }
+
+    function refillCurrentShelf() {
+      if (selectedCellIndex === null) return;
+      const cell = gameState.gridShelves[selectedCellIndex];
+      if (!cell.productId) {
+        addLog('陳列する商品が選択されていません。');
+        return;
+      }
+      const inv = gameState.inventory[cell.productId];
+      const needed = 20 - cell.count;
+      if (needed <= 0) {
+        addLog('この棚は既に満杯です。');
+        return;
+      }
+      if (inv.back <= 0) {
+        addLog('バックヤードに在庫がありません。在庫管理で発注してください。');
+        return;
+      }
+      const move = Math.min(needed, inv.back);
+      cell.count += move;
+      inv.back -= move;
+      playKeyBeep();
+      renderUribaGrid();
+      closeShelfModal();
+      addLog(`棚に商品を${move}個補充しました。`);
+    }
+
+    /* =========================================================
+       7. 在庫管理ロジック
+       ========================================================= */
+    let currentInvCat = 'デイリー';
+
+    function selectInvCategory(cat) {
+      currentInvCat = cat;
+      document.querySelectorAll('.category-tab').forEach(tab => {
+        if (tab.getAttribute('data-cat') === cat) {
+          tab.classList.add('border-emerald-600', 'text-emerald-600');
+          tab.classList.remove('border-transparent', 'text-slate-500');
+        } else {
+          tab.classList.remove('border-emerald-600', 'text-emerald-600');
+          tab.classList.add('border-transparent', 'text-slate-500');
         }
-
-        // Start Next Day logic
-        function startNextDay() {
-            // Deduct Staff Salaries
-            const totalSalaries = (gameState.staff.register + gameState.staff.restock) * 1000;
-            gameState.cash -= totalSalaries;
-            gameState.dailyExpenses += totalSalaries;
-
-            gameState.day++;
-            gameState.hour = 8;
-            gameState.minute = 0;
-            gameState.dailySales = 0;
-            gameState.dailyExpenses = 0;
-            
-            showToast(`Day ${gameState.day} の営業を開始します。(人件費 ¥${totalSalaries.toLocaleString()} 支払い)`, "info");
-        }
-
-        // Calculate Customer Arrival Probability based on time peaks
-        function attemptCustomerSpawn() {
-            if (gameState.hour >= 22) return; // No new customers after 22:00
-
-            let spawnChance = 0.2; // Base chance per 5 min tick
-
-            // Rush Hour Multipliers
-            if ((gameState.hour >= 8 && gameState.hour < 9) || 
-                (gameState.hour >= 11 && gameState.hour < 13) || 
-                (gameState.hour >= 17 && gameState.hour < 19)) {
-                spawnChance = 0.65; // Peak time high spawn
-            } else if (gameState.hour >= 13 && gameState.hour < 16) {
-                spawnChance = 0.35; // Afternoon moderate
-            }
-
-            if (Math.random() < spawnChance) {
-                spawnCustomer();
-            }
-        }
-
-        // Generate a new customer and pick items from shelf
-        function spawnCustomer() {
-            const demo = DEMOGRAPHICS[Math.floor(Math.random() * DEMOGRAPHICS.length)];
-            const isRegular = Math.random() < 0.3; // 30% chance for regular customer
-
-            // Pick items based on demographic preferences
-            const itemCount = Math.max(1, Math.floor(demo.avgBuy + (Math.random() * 2 - 1)));
-            const basket = [];
-
-            for (let i = 0; i < itemCount; i++) {
-                // Pick preferred sub-categories
-                const targetSubCat = demo.pref[Math.floor(Math.random() * demo.pref.length)];
-                // Filter available products on shelf
-                const availableProds = gameState.products.filter(p => p.subCat === targetSubCat && p.shelfStock > 0);
-                
-                if (availableProds.length > 0) {
-                    const chosenProd = availableProds[Math.floor(Math.random() * availableProds.length)];
-                    
-                    // High price sensitivity check
-                    const priceRatio = chosenProd.price / chosenProd.defaultPrice;
-                    if (priceRatio > 1.3 && Math.random() < 0.5) {
-                        // Customer refuses to buy due to high price
-                        continue;
-                    }
-
-                    chosenProd.shelfStock--;
-                    basket.push({
-                        id: chosenProd.id,
-                        name: chosenProd.name,
-                        price: chosenProd.price
-                    });
-                }
-            }
-
-            // If customer found items to buy
-            if (basket.length > 0) {
-                const newCust = {
-                    id: Date.now() + Math.random(),
-                    demo: demo,
-                    isRegular: isRegular,
-                    basket: basket
-                };
-
-                gameState.customerQueue.push(newCust);
-                
-                // If register is free, pull customer immediately
-                if (!gameState.activeCustomer) {
-                    nextCustomerToRegister();
-                }
-
-                updateRegisterUI();
-                renderFloorShelves();
-            }
-        }
-
-        // Pull next customer from queue to register terminal
-        function nextCustomerToRegister() {
-            if (gameState.customerQueue.length > 0) {
-                gameState.activeCustomer = gameState.customerQueue.shift();
-                gameState.unscannedItems = [...gameState.activeCustomer.basket];
-                gameState.scannedItems = [];
-            } else {
-                gameState.activeCustomer = null;
-                gameState.unscannedItems = [];
-                gameState.scannedItems = [];
-            }
-            updateRegisterUI();
-        }
-
-        // Manual Scan Single Item
-        function manualScanItem() {
-            if (!gameState.activeCustomer || gameState.unscannedItems.length === 0) return;
-
-            const scanned = gameState.unscannedItems.shift();
-            gameState.scannedItems.push(scanned);
-
-            // Visual scan sound effect / feedback
-            const terminal = document.getElementById('register-terminal');
-            terminal.classList.add('scan-flash');
-            setTimeout(() => terminal.classList.remove('scan-flash'), 250);
-
-            updateRegisterUI();
-        }
-
-        // Checkout Active Customer
-        function checkoutActiveCustomer() {
-            if (!gameState.activeCustomer || gameState.unscannedItems.length > 0) return;
-
-            // Calculate total price
-            const total = gameState.scannedItems.reduce((sum, item) => sum + item.price, 0);
-            gameState.cash += total;
-            gameState.dailySales += total;
-
-            showToast(`会計完了: ¥${total.toLocaleString()} 売り上げました。`, "success");
-
-            // Reset and move to next customer
-            nextCustomerToRegister();
-            updateHeaderUI();
-            updateRegisterUI();
-        }
-
-        function executeStaffTasks() {
-            // Auto Restock Staff (Restocks 1 item per staff every tick)
-            if (gameState.staff.restock > 0) {
-                for (let s = 0; s < gameState.staff.restock; s++) {
-                    const lowStockItem = gameState.products.find(p => p.shelfStock < 5 && p.backStock > 0);
-                    if (lowStockItem) {
-                        const amount = Math.min(5, lowStockItem.backStock);
-                        lowStockItem.backStock -= amount;
-                        lowStockItem.shelfStock += amount;
-                        renderFloorShelves();
-                        renderInventory();
-                    }
-                }
-            }
-
-            // Auto Register Staff (Auto scans items every tick)
-            if (gameState.staff.register > 0 && gameState.activeCustomer) {
-                document.getElementById('auto-scan-indicator').classList.remove('hidden');
-                if (gameState.unscannedItems.length > 0) {
-                    manualScanItem();
-                } else if (gameState.unscannedItems.length === 0 && gameState.scannedItems.length > 0) {
-                    checkoutActiveCustomer();
-                }
-            } else {
-                document.getElementById('auto-scan-indicator').classList.add('hidden');
-            }
-        }
-
-        // Restock shelf manually from backroom
-        function restockToShelf(prodId, amount) {
-            const prod = gameState.products.find(p => p.id === prodId);
-            if (!prod) return;
-
-            const actualAmount = Math.min(amount, prod.backStock);
-            if (actualAmount <= 0) {
-                showToast("バックヤードに在庫がありません！発注を行ってください。", "error");
-                return;
-            }
-
-            prod.backStock -= actualAmount;
-            prod.shelfStock += actualAmount;
-            showToast(`${prod.name} を ${actualAmount}個 売り場に補充しました。`, "info");
-            
-            renderFloorShelves();
-            renderInventory();
-        }
-
-        // Purchase / Order Stock from Supplier
-        function orderStock(prodId, amount) {
-            const prod = gameState.products.find(p => p.id === prodId);
-            if (!prod) return;
-
-            const totalCost = prod.cost * amount;
-            if (gameState.cash < totalCost) {
-                showToast("資金が不足しています！", "error");
-                return;
-            }
-
-            gameState.cash -= totalCost;
-            gameState.dailyExpenses += totalCost;
-            prod.backStock += amount;
-
-            showToast(`${prod.name} を ${amount}個 発注・納品しました (-¥${totalCost.toLocaleString()})`, "success");
-
-            updateHeaderUI();
-            renderInventory();
-        }
-
-        function hireStaff(type) {
-            if (gameState.cash < 1000) {
-                showToast("雇用資金が不足しています", "error");
-                return;
-            }
-            gameState.staff[type]++;
-            showToast("スタッフを雇用しました", "success");
-            renderOffice();
-        }
-
-        function fireStaff(type) {
-            if (gameState.staff[type] > 0) {
-                gameState.staff[type]--;
-                showToast("スタッフを解雇しました", "info");
-                renderOffice();
-            }
-        }
-
-        function changePrice(prodId, newPrice) {
-            const prod = gameState.products.find(p => p.id === prodId);
-            if (prod) {
-                prod.price = Math.max(10, parseInt(newPrice) || prod.defaultPrice);
-            }
-        }
-
-        
-        // Tab View Switching
-        function switchTab(tabName) {
-            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
-            document.getElementById(`view-${tabName}`).classList.remove('hidden');
-
-            // Nav Button Styling
-            document.querySelectorAll('.nav-tab').forEach(btn => {
-                btn.classList.remove('text-emerald-600');
-                btn.classList.add('text-slate-400');
-            });
-            document.getElementById(`nav-btn-${tabName}`).classList.remove('text-slate-400');
-            document.getElementById(`nav-btn-${tabName}`).classList.add('text-emerald-600');
-
-            if (tabName === 'floor') renderFloorShelves();
-            if (tabName === 'inventory') renderInventory();
-            if (tabName === 'office') renderOffice();
-        }
-
-        // Header and Status Bar UI Update
-        function updateHeaderUI() {
-            document.getElementById('display-day').innerText = gameState.day;
-            const h = String(gameState.hour).padStart(2, '0');
-            const m = String(gameState.minute).padStart(2, '0');
-            document.getElementById('display-time').innerText = `${h}:${m}`;
-            
-            const cashStr = `¥${gameState.cash.toLocaleString()}`;
-            document.getElementById('display-cash').innerText = cashStr;
-            document.getElementById('display-cash-mobile').innerText = cashStr;
-            document.getElementById('display-daily-sales').innerText = `¥${gameState.dailySales.toLocaleString()}`;
-
-            // Open/Close Button
-            const btn = document.getElementById('btn-toggle-store');
-            const icon = document.getElementById('store-btn-icon');
-            const text = document.getElementById('store-btn-text');
-
-            if (gameState.isOpen) {
-                btn.className = "bg-rose-600 hover:bg-rose-700 active:scale-95 transition-all text-white font-bold py-2 px-4 rounded-lg shadow flex items-center space-x-1.5 text-sm";
-                icon.className = "fa-solid fa-door-closed";
-                text.innerText = "閉店する";
-            } else {
-                btn.className = "bg-amber-500 hover:bg-amber-600 active:scale-95 transition-all text-white font-bold py-2 px-4 rounded-lg shadow flex items-center space-x-1.5 text-sm";
-                icon.className = "fa-solid fa-door-open";
-                text.innerText = gameState.hour >= 22 ? "翌日営業開始" : "開店する";
-            }
-
-            // Nav queue badge
-            const qLen = gameState.customerQueue.length + (gameState.activeCustomer ? 1 : 0);
-            const badge = document.getElementById('nav-queue-badge');
-            if (qLen > 0) {
-                badge.innerText = qLen;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-
-        // Render Sales Floor Shelves
-        function renderFloorShelves() {
-            const container = document.getElementById('floor-shelves-grid');
-            container.innerHTML = '';
-
-            const subCats = ['米飯', 'パン', 'お菓子', 'ドリンク'];
-            
-            subCats.forEach(sub => {
-                const prods = gameState.products.filter(p => p.subCat === sub);
-                let shelfHtml = `
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="bg-slate-800 text-white px-4 py-2 font-bold text-sm flex justify-between items-center">
-                            <span><i class="fa-solid fa-layer-group text-emerald-400 mr-2"></i>棚：${sub}</span>
-                            <span class="text-xs text-slate-400">計 ${prods.reduce((s,p)=>s+p.shelfStock,0)} 個</span>
-                        </div>
-                        <div class="p-3 space-y-2">
-                `;
-
-                prods.forEach(p => {
-                    const stockColor = p.shelfStock === 0 ? 'text-rose-600 font-bold' : p.shelfStock < 5 ? 'text-amber-600' : 'text-slate-600';
-                    shelfHtml += `
-                        <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
-                            <div>
-                                <div class="font-bold text-sm text-slate-800">${p.name}</div>
-                                <div class="text-xs text-slate-400">価格: ¥${p.price} (原価: ¥${p.cost})</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-xs ${stockColor}">売場: <strong class="text-base font-mono">${p.shelfStock}</strong></div>
-                                <button onclick="restockToShelf('${p.id}', 5)" class="text-[11px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2 py-0.5 rounded mt-1">
-                                    + 補充(5)
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                shelfHtml += `</div></div>`;
-                container.innerHTML += shelfHtml;
-            });
-        }
-
-        // Render Register & Queue Visuals
-        function updateRegisterUI() {
-            const qLen = gameState.customerQueue.length;
-            document.getElementById('queue-count-badge').innerText = `待機 ${qLen}人`;
-
-            // Queue Avatars
-            const queueVisual = document.getElementById('customer-queue-visual');
-            if (qLen === 0) {
-                queueVisual.innerHTML = `<span class="text-xs text-slate-400 w-full text-center">現在並んでいる客はいません</span>`;
-            } else {
-                queueVisual.innerHTML = gameState.customerQueue.map(c => `
-                    <div class="flex-shrink-0 text-center customer-pop">
-                        <div class="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold border border-blue-300">
-                            <i class="fa-solid ${c.demo.icon}"></i>
-                        </div>
-                        <span class="text-[10px] text-slate-500 block">${c.demo.age}</span>
-                    </div>
-                `).join('');
-            }
-
-            // Active Customer Card
-            const activeCard = document.getElementById('active-customer-card');
-            const emptyCard = document.getElementById('active-customer-empty');
-
-            if (gameState.activeCustomer) {
-                activeCard.classList.remove('hidden');
-                emptyCard.classList.add('hidden');
-
-                const c = gameState.activeCustomer;
-                document.getElementById('cust-avatar').innerHTML = `<i class="fa-solid ${c.demo.icon}"></i>`;
-                document.getElementById('cust-demo-title').innerText = `${c.demo.age} ${c.demo.job}`;
-                document.getElementById('cust-type-badge').innerText = c.isRegular ? '常連客' : '新規客';
-                document.getElementById('cust-dialogue').innerText = `「${c.basket.length}点お願いします。」`;
-            } else {
-                activeCard.classList.add('hidden');
-                emptyCard.classList.remove('hidden');
-            }
-
-            // Register Terminal Items & Buttons
-            const itemsList = document.getElementById('reg-items-list');
-            const basketCount = document.getElementById('reg-basket-count');
-            const totalAmount = document.getElementById('reg-total-amount');
-
-            if (gameState.activeCustomer) {
-                basketCount.innerText = gameState.unscannedItems.length;
-
-                let listHtml = '';
-                gameState.scannedItems.forEach(item => {
-                    listHtml += `
-                        <div class="flex justify-between items-center text-emerald-400">
-                            <span><i class="fa-solid fa-check text-xs mr-2"></i>${item.name}</span>
-                            <span>¥${item.price}</span>
-                        </div>
-                    `;
-                });
-                gameState.unscannedItems.forEach(item => {
-                    listHtml += `
-                        <div class="flex justify-between items-center text-slate-600">
-                            <span><i class="fa-solid fa-circle text-[8px] mr-2"></i>${item.name}</span>
-                            <span>¥${item.price}</span>
-                        </div>
-                    `;
-                });
-
-                itemsList.innerHTML = listHtml;
-
-                const currentTotal = gameState.scannedItems.reduce((s, i) => s + i.price, 0);
-                totalAmount.innerText = `¥${currentTotal.toLocaleString()}`;
-
-                // Scan & Checkout Buttons state
-                document.getElementById('btn-scan').disabled = gameState.unscannedItems.length === 0;
-                document.getElementById('btn-checkout').disabled = !(gameState.unscannedItems.length === 0 && gameState.scannedItems.length > 0);
-            } else {
-                basketCount.innerText = '0';
-                totalAmount.innerText = '¥0';
-                itemsList.innerHTML = `<div class="text-slate-600 text-center py-12 text-xs">商品が読み込まれていません</div>`;
-                document.getElementById('btn-scan').disabled = true;
-                document.getElementById('btn-checkout').disabled = true;
-            }
-        }
-
-        // Filter and Render Inventory Items
-        let currentInvFilter = 'all';
-        function filterInventoryCategory(cat) {
-            currentInvFilter = cat;
-            document.querySelectorAll('.cat-tab').forEach(btn => {
-                btn.className = "cat-tab bg-slate-200 text-slate-700 hover:bg-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap";
-            });
-            event.target.className = "cat-tab bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap";
-            renderInventory();
-        }
-
-        function renderInventory() {
-            const container = document.getElementById('inventory-grid');
-            container.innerHTML = '';
-
-            const filtered = currentInvFilter === 'all' ? gameState.products : gameState.products.filter(p => p.subCat === currentInvFilter);
-
-            filtered.forEach(p => {
-                container.innerHTML += `
-                    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between space-y-2">
-                        <div>
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <span class="text-[10px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded">${p.mainCat} > ${p.subCat}</span>
-                                    <h4 class="font-bold text-sm text-slate-800 mt-1">${p.name}</h4>
-                                </div>
-                                <span class="text-xs font-mono font-bold text-slate-500">原価: ¥${p.cost}</span>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 mt-3 text-center">
-                                <div class="bg-slate-50 p-1.5 rounded border border-slate-100">
-                                    <span class="text-[10px] text-slate-400 block">売り場在庫</span>
-                                    <span class="font-bold font-mono text-slate-700 text-sm">${p.shelfStock}</span>
-                                </div>
-                                <div class="bg-slate-50 p-1.5 rounded border border-slate-100">
-                                    <span class="text-[10px] text-slate-400 block">バックヤード</span>
-                                    <span class="font-bold font-mono text-indigo-600 text-sm">${p.backStock}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center space-x-2 pt-2 border-t border-slate-100">
-                            <button onclick="orderStock('${p.id}', 10)" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-1.5 rounded shadow-sm">
-                                発注+10 (¥${(p.cost * 10).toLocaleString()})
-                            </button>
-                            <button onclick="orderStock('${p.id}', 20)" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1.5 rounded shadow-sm">
-                                発注+20 (¥${(p.cost * 20).toLocaleString()})
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        // Render Office & Financial Settings
-        function renderOffice() {
-            document.getElementById('office-daily-sales').innerText = `¥${gameState.dailySales.toLocaleString()}`;
-            document.getElementById('office-daily-expenses').innerText = `¥${gameState.dailyExpenses.toLocaleString()}`;
-            document.getElementById('office-staff-count').innerText = `${gameState.staff.register + gameState.staff.restock}人`;
-
-            document.getElementById('staff-reg-count').innerText = gameState.staff.register;
-            document.getElementById('staff-stock-count').innerText = gameState.staff.restock;
-
-            // Price list render
-            const priceList = document.getElementById('price-settings-list');
-            priceList.innerHTML = '';
-
-            gameState.products.forEach(p => {
-                priceList.innerHTML += `
-                    <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-200 text-xs">
-                        <div class="w-1/3">
-                            <span class="font-bold text-slate-800">${p.name}</span>
-                            <span class="text-slate-400 block">原価: ¥${p.cost}</span>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <span>販売価格: ¥</span>
-                            <input type="number" value="${p.price}" onchange="changePrice('${p.id}', this.value)" class="w-20 p-1 border rounded font-mono font-bold text-right">
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        // Utility: Show Toast Notification
-        function showToast(message, type = "info") {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            
-            const bgColor = type === "success" ? "bg-emerald-800 text-emerald-100" :
-                            type === "error" ? "bg-rose-800 text-rose-100" :
-                            type === "warning" ? "bg-amber-800 text-amber-100" : "bg-slate-800 text-slate-100";
-
-            toast.className = `${bgColor} text-xs font-bold px-4 py-2.5 rounded-lg shadow-lg border border-white/10 flex items-center space-x-2 transition-all duration-300 transform translate-y-2 opacity-0`;
-            toast.innerHTML = `<span>${message}</span>`;
-
-            container.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.classList.remove('translate-y-2', 'opacity-0');
-            }, 10);
-
-            setTimeout(() => {
-                toast.classList.add('opacity-0');
-                setTimeout(() => toast.remove(), 300);
-            }, 2500);
-        }
-
-        // Keyboard Short-cuts for Register Controls
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
-                e.preventDefault();
-                manualScanItem();
-            } else if (e.code === 'Enter') {
-                e.preventDefault();
-                checkoutActiveCustomer();
-            }
+      });
+      renderInventoryTable();
+    }
+
+    function renderInventoryTable() {
+      const tbody = document.getElementById('inventoryTableBody');
+      tbody.innerHTML = '';
+
+      const filtered = MASTER_PRODUCTS.filter(p => p.major === currentInvCat);
+
+      filtered.forEach(p => {
+        // 売り場陳列総数を集計
+        let onShelfCount = 0;
+        gameState.gridShelves.forEach(c => {
+          if (c.productId === p.id) onShelfCount += c.count;
         });
 
-        // Initialize Game View on Load
-        window.onload = function() {
-            renderFloorShelves();
-            renderInventory();
-            renderOffice();
-            updateHeaderUI();
-            updateRegisterUI();
-        };
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 border-b border-slate-100';
 
-    </script>
+        tr.innerHTML = `
+          <td class="py-2.5 px-4 font-bold text-slate-500 text-xs">${p.minor}</td>
+          <td class="py-2.5 px-4 font-bold text-slate-800 text-xs">${p.name}</td>
+          <td class="py-2.5 px-4 text-center font-mono text-xs">¥${p.cost.toLocaleString()}</td>
+          <td class="py-2.5 px-4 text-center font-mono font-bold text-emerald-700 text-xs">
+            ${p.major === '備品' ? '-' : '¥' + gameState.inventory[p.id].price.toLocaleString()}
+          </td>
+          <td class="py-2.5 px-4 text-center font-mono font-bold text-xs" id="backStock-${p.id}">
+            ${gameState.inventory[p.id].back}
+          </td>
+          <td class="py-2.5 px-4 text-center font-mono text-xs text-blue-600 font-bold">
+            ${p.major === '備品' ? '-' : onShelfCount}
+          </td>
+          <td class="py-2.5 px-4 text-center">
+            <div class="flex items-center justify-center gap-1.5">
+              <input type="number" min="1" max="100" value="10" id="orderInput-${p.id}" class="w-16 p-1 text-center border border-slate-300 rounded font-mono text-xs">
+              <button onclick="orderProduct('${p.id}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded text-xs transition">
+                発注
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function orderProduct(productId) {
+      const input = document.getElementById(`orderInput-${productId}`);
+      const qty = parseInt(input.value) || 0;
+      if (qty <= 0) return;
+
+      const prod = MASTER_PRODUCTS.find(p => p.id === productId);
+      const totalCost = prod.cost * qty;
+
+      if (gameState.money < totalCost) {
+        addLog(`所持金不足: ${prod.name} × ${qty}個の発注に必要な¥${totalCost.toLocaleString()}がありません。`);
+        return;
+      }
+
+      gameState.money -= totalCost;
+      gameState.dailyCost += totalCost;
+      gameState.inventory[productId].back += qty;
+
+      playKeyBeep();
+      updateHeaderStats();
+      renderInventoryTable();
+      addLog(`商品発注完了: ${prod.name} × ${qty}個 (支出: ¥${totalCost.toLocaleString()})`);
+    }
+
+    function restockAllShelves() {
+      let movedCount = 0;
+      gameState.gridShelves.forEach(cell => {
+        if (cell.type && cell.productId) {
+          const inv = gameState.inventory[cell.productId];
+          const needed = 20 - cell.count;
+          if (needed > 0 && inv.back > 0) {
+            const take = Math.min(needed, inv.back);
+            cell.count += take;
+            inv.back -= take;
+            movedCount += take;
+          }
+        }
+      });
+      playRegisterOpen();
+      renderUribaGrid();
+      renderInventoryTable();
+      addLog(`売り場へ一括補充を行いました（合計 ${movedCount} 個陳列）。`);
+    }
+
+    /* =========================================================
+       8. レジカウンター＆POS端末ロジック (regi.png 忠実再現)
+       ========================================================= */
+    function renderRegistersList() {
+      const container = document.getElementById('registersListContainer');
+      container.innerHTML = '';
+
+      let totalWaiting = 0;
+
+      gameState.registers.forEach((reg, idx) => {
+        totalWaiting += reg.queue.length;
+        const card = document.createElement('div');
+        card.className = 'bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between';
+
+        if (!reg.installed) {
+          // デフォルト：{"レジを置く"}
+          card.innerHTML = `
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-slate-700">POSレジ ${idx + 1}</h3>
+                <span class="text-xs text-slate-400 font-semibold">未設置</span>
+              </div>
+              <p class="text-xs text-slate-500 mb-4">レジを設置すると客の会計処理を行えるようになります。</p>
+            </div>
+            <button onclick="installRegister(${idx})" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow">
+              レジを置く (¥50,000)
+            </button>
+          `;
+        } else {
+          // レジ設置後：{<button>このレジに入る<button>}
+          const assigned = reg.staffAssigned;
+          card.innerHTML = `
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <h3 class="font-bold text-slate-800 text-base">POSレジ ${idx + 1}</h3>
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold ${reg.queue.length > 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}">
+                  待機客: ${reg.queue.length}人
+                </span>
+              </div>
+              <div class="text-xs text-slate-500 mb-3 flex items-center justify-between">
+                <span>担当: ${assigned ? '🧑‍💼 バイトスタッフ (自動)' : '👤 店長・手動操作'}</span>
+                <button onclick="toggleRegisterStaff(${idx})" class="text-[11px] underline text-blue-600 font-bold hover:text-blue-800">
+                  ${assigned ? '手動に切替' : 'バイト配置'}
+                </button>
+              </div>
+            </div>
+            <button onclick="enterRegisterTerminal(${idx})" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold rounded-lg text-xs transition shadow flex items-center justify-center gap-1.5">
+              <span>🖥️ このレジに入る</span>
+            </button>
+          `;
+        }
+        container.appendChild(card);
+      });
+
+      document.getElementById('totalQueueBadge').textContent = `${totalWaiting}人`;
+      const navBadge = document.getElementById('navRegiBadge');
+      if (totalWaiting > 0) {
+        navBadge.textContent = totalWaiting;
+        navBadge.classList.remove('hidden');
+        navBadge.classList.add('flex');
+      } else {
+        navBadge.classList.add('hidden');
+        navBadge.classList.remove('flex');
+      }
+    }
+
+    function installRegister(index) {
+      const cost = 50000;
+      if (gameState.money < cost) {
+        addLog(`資金不足: レジの設置には¥${cost.toLocaleString()}必要です。`);
+        return;
+      }
+      gameState.money -= cost;
+      gameState.registers[index].installed = true;
+      playRegisterOpen();
+      updateHeaderStats();
+      renderRegistersList();
+      addLog(`レジ ${index + 1} を設置しました (-¥50,000)`);
+    }
+
+    function toggleRegisterStaff(index) {
+      const reg = gameState.registers[index];
+      if (!reg.staffAssigned) {
+        // スタッフを割り当て
+        const assignedStaffCount = gameState.registers.filter(r => r.staffAssigned).length;
+        if (gameState.staffCount <= assignedStaffCount) {
+          addLog('待機中のアルバイトスタッフがいません。「事務」タブでスタッフを雇用してください。');
+          return;
+        }
+        reg.staffAssigned = true;
+        addLog(`レジ ${index + 1} にアルバイトを配置しました（自動会計が開始されます）。`);
+      } else {
+        reg.staffAssigned = false;
+        addLog(`レジ ${index + 1} を手動操作に切り替えました。`);
+      }
+      renderRegistersList();
+    }
+
+    // POS端末操作画面へ入る
+    function enterRegisterTerminal(index) {
+      gameState.activeRegisterIndex = index;
+      document.getElementById('regiListView').classList.add('hidden');
+      document.getElementById('regiTerminalView').classList.remove('hidden');
+      document.getElementById('currentRegisterTitle').textContent = `レジ ${index + 1}`;
+      document.getElementById('posScreenHeaderNo').textContent = `REGISTER #${index + 1}`;
+
+      refreshPosDisplay();
+    }
+
+    function exitRegisterTerminal() {
+      gameState.activeRegisterIndex = null;
+      document.getElementById('regiTerminalView').classList.add('hidden');
+      document.getElementById('regiListView').classList.remove('hidden');
+      renderRegistersList();
+    }
+
+    function refreshPosDisplay() {
+      if (gameState.activeRegisterIndex === null) return;
+      const reg = gameState.registers[gameState.activeRegisterIndex];
+      const waitBadge = document.getElementById('customerWaitingBadge');
+      waitBadge.textContent = `待機列: ${reg.queue.length}人`;
+
+      const screenHeader = document.getElementById('posScreenCustomerInfo');
+      const screenBody = document.getElementById('posScreenBody');
+      const remainEl = document.getElementById('posBasketRemain');
+      const totalEl = document.getElementById('posTotalAmount');
+      const payBtn = document.getElementById('posPayBtn');
+
+      if (!gameState.posActiveBasket) {
+        // 待機列から客を取得
+        if (reg.queue.length > 0) {
+          gameState.posActiveBasket = reg.queue.shift();
+          gameState.posScannedItems = [];
+          gameState.posTotal = 0;
+        }
+      }
+
+      if (gameState.posActiveBasket) {
+        const cust = gameState.posActiveBasket;
+        screenHeader.textContent = `客層: ${cust.age}・${cust.job} [${cust.type}]`;
+        remainEl.textContent = `${cust.items.length} 点`;
+        totalEl.textContent = `¥${gameState.posTotal.toLocaleString()}`;
+
+        // スキャン済みレシートログ描画
+        let html = '';
+        gameState.posScannedItems.forEach(item => {
+          html += `
+            <div class="flex justify-between border-b border-slate-200 pb-0.5">
+              <span>${item.name}</span>
+              <span class="font-bold">¥${item.price.toLocaleString()}</span>
+            </div>
+          `;
+        });
+        if (gameState.posScannedItems.length === 0) {
+          html = `<div class="text-slate-400 text-center py-4">スキャンボタンを押してカゴ商品を読み取ってください</div>`;
+        }
+        screenBody.innerHTML = html;
+        screenBody.scrollTop = screenBody.scrollHeight;
+
+        // 全てスキャン完了で会計ボタン有効化
+        if (cust.items.length === 0) {
+          payBtn.disabled = false;
+        } else {
+          payBtn.disabled = true;
+        }
+      } else {
+        screenHeader.textContent = 'お客様はお待ちしていません';
+        screenBody.innerHTML = `<div class="text-slate-400 text-center py-6 font-sans">待機列は空です</div>`;
+        remainEl.textContent = '0 点';
+        totalEl.textContent = '¥0';
+        payBtn.disabled = true;
+      }
+    }
+
+    // スキャンボタン操作
+    function posScanItem() {
+      if (!gameState.posActiveBasket) return;
+      const cust = gameState.posActiveBasket;
+      if (cust.items.length === 0) return;
+
+      const item = cust.items.shift();
+      gameState.posScannedItems.push(item);
+      gameState.posTotal += item.price;
+
+      playBeepScan();
+      refreshPosDisplay();
+    }
+
+    // 会計するボタン操作
+    function posCheckoutItem() {
+      if (!gameState.posActiveBasket) return;
+      if (gameState.posActiveBasket.items.length > 0) return; // 未スキャン商品あり
+
+      playRegisterOpen();
+
+      // レシート排出アニメーション演出
+      const paper = document.getElementById('receiptPaperEffect');
+      paper.classList.remove('hidden');
+      setTimeout(() => paper.classList.add('hidden'), 900);
+
+      // 売上反映
+      gameState.money += gameState.posTotal;
+      gameState.dailySales += gameState.posTotal;
+      addLog(`会計完了: ¥${gameState.posTotal.toLocaleString()} を受領しました。`);
+
+      // 客退店
+      gameState.posActiveBasket = null;
+      gameState.posScannedItems = [];
+      gameState.posTotal = 0;
+
+      updateHeaderStats();
+      refreshPosDisplay();
+      renderRegistersList();
+    }
+
+    function posCancelCurrentBasket() {
+      if (!gameState.posActiveBasket) return;
+      // カゴ内を破棄・返却
+      addLog('レジ操作をリセットしました。');
+      gameState.posActiveBasket = null;
+      gameState.posScannedItems = [];
+      gameState.posTotal = 0;
+      refreshPosDisplay();
+    }
+
+    /* =========================================================
+       9. 事務セクション操作
+       ========================================================= */
+    function hireStaff() {
+      gameState.staffCount++;
+      playKeyBeep();
+      document.getElementById('officeStaffCount').textContent = `${gameState.staffCount} 名`;
+      updateHeaderStats();
+      addLog(`アルバイトスタッフを1名雇用しました（現在 ${gameState.staffCount} 名）。`);
+    }
+
+    function fireStaff() {
+      if (gameState.staffCount <= 0) return;
+      gameState.staffCount--;
+      // レジ配置も調整
+      let assigned = gameState.registers.filter(r => r.staffAssigned).length;
+      if (assigned > gameState.staffCount) {
+        for (let i = gameState.registers.length - 1; i >= 0; i--) {
+          if (gameState.registers[i].staffAssigned) {
+            gameState.registers[i].staffAssigned = false;
+            break;
+          }
+        }
+      }
+      playKeyBeep();
+      document.getElementById('officeStaffCount').textContent = `${gameState.staffCount} 名`;
+      updateHeaderStats();
+      renderRegistersList();
+      addLog(`スタッフを1名解雇しました（現在 ${gameState.staffCount} 名）。`);
+    }
+
+    function updateMarkupRatio(val) {
+      gameState.markupMultiplier = val / 100;
+      document.getElementById('markupRateLabel').textContent = `${val}%`;
+    }
+
+    function applyMarkupToAll() {
+      MASTER_PRODUCTS.forEach(p => {
+        if (p.major !== '備品') {
+          gameState.inventory[p.id].price = Math.round(p.price * gameState.markupMultiplier);
+        }
+      });
+      playKeyBeep();
+      renderInventoryTable();
+      addLog(`全商品の販売価格に倍率 ${(gameState.markupMultiplier * 100).toFixed(0)}% を反映しました。`);
+    }
+
+    /* =========================================================
+       10. 客の行動ロジック・来店・購買シミュレーション
+       ========================================================= */
+    const AGES = ['10代', '20代', '30代', '40代', '50代', '60代以上'];
+    const JOBS = ['学生', '会社員', '主婦', '自営業', 'シニア'];
+    const CUSTOMER_TYPES = ['固定客', '流動客'];
+
+    function spawnCustomers() {
+      // 22:00以降は新規入店なし
+      if (!gameState.isOpen || gameState.hour >= 22) return;
+
+      // 時間帯に応じた来店率計算
+      // 出勤ピーク: 8:00~9:00
+      // 昼ピーク: 11:00~13:00
+      // 夕方ピーク: 17:00~19:00
+      let peakRate = 1.0;
+      if (gameState.hour >= 8 && gameState.hour < 9) peakRate = 2.4;
+      else if (gameState.hour >= 11 && gameState.hour < 13) peakRate = 2.8;
+      else if (gameState.hour >= 17 && gameState.hour < 19) peakRate = 2.5;
+      else if (gameState.hour >= 20) peakRate = 0.7;
+
+      // 価格設定による需要補正
+      let pricePenalty = 1.0;
+      if (gameState.markupMultiplier > 1.0) {
+        pricePenalty = Math.max(0.4, 1.0 - (gameState.markupMultiplier - 1.0) * 1.2);
+      } else if (gameState.markupMultiplier < 1.0) {
+        pricePenalty = 1.0 + (1.0 - gameState.markupMultiplier) * 0.8;
+      }
+
+      // 出現判定
+      const spawnChance = 0.45 * peakRate * pricePenalty;
+      if (Math.random() < spawnChance) {
+        const age = AGES[Math.floor(Math.random() * AGES.length)];
+        const job = JOBS[Math.floor(Math.random() * JOBS.length)];
+        const type = CUSTOMER_TYPES[Math.floor(Math.random() * CUSTOMER_TYPES.length)];
+
+        // ピッキング商品数を決定 (年代・客層で変化)
+        let buyTargetCount = Math.floor(Math.random() * 3) + 1;
+        if (job === '会社員' && gameState.hour >= 11 && gameState.hour <= 13) buyTargetCount += 1;
+        if (job === '主婦') buyTargetCount += Math.floor(Math.random() * 2);
+
+        // 売り場にある商品から選定
+        const activeShelvesWithStock = gameState.gridShelves.filter(c => c.productId && c.count > 0);
+        if (activeShelvesWithStock.length === 0) {
+          // 商品がない場合は不満退店
+          return;
+        }
+
+        const customerCart = [];
+        for (let i = 0; i < buyTargetCount; i++) {
+          if (activeShelvesWithStock.length === 0) break;
+          const shelf = activeShelvesWithStock[Math.floor(Math.random() * activeShelvesWithStock.length)];
+          const prod = MASTER_PRODUCTS.find(p => p.id === shelf.productId);
+          if (prod && shelf.count > 0) {
+            shelf.count--;
+            customerCart.push({
+              name: prod.name,
+              price: gameState.inventory[prod.id].price
+            });
+            if (shelf.count <= 0) {
+              const idx = activeShelvesWithStock.indexOf(shelf);
+              if (idx > -1) activeShelvesWithStock.splice(idx, 1);
+            }
+          }
+        }
+
+        if (customerCart.length > 0) {
+          // レジ待機列へ追加（設置済みレジのうち最も空いているレジへ）
+          const availableRegs = gameState.registers.filter(r => r.installed);
+          if (availableRegs.length > 0) {
+            availableRegs.sort((a, b) => a.queue.length - b.queue.length);
+            availableRegs[0].queue.push({
+              age, job, type,
+              items: customerCart
+            });
+            playChime();
+          }
+        }
+      }
+    }
+
+    // アルバイトによる自動レジ処理
+    function processAutomatedRegisters() {
+      gameState.registers.forEach((reg, idx) => {
+        if (reg.installed && reg.staffAssigned && reg.queue.length > 0) {
+          // バイトが1客処理
+          const cust = reg.queue.shift();
+          let amount = 0;
+          cust.items.forEach(it => amount += it.price);
+          gameState.money += amount;
+          gameState.dailySales += amount;
+          addLog(`[レジ${idx + 1}(バイト)] ${cust.job}の会計を自動完了 (¥${amount.toLocaleString()})`);
+        }
+      });
+    }
+
+    /* =========================================================
+       11. タイマー＆日次決算ロジック (08:00〜22:00)
+       ========================================================= */
+    let gameInterval = null;
+
+    function toggleStoreOpen() {
+      gameState.isOpen = !gameState.isOpen;
+      const btn = document.getElementById('openCloseBtn');
+      const label = document.getElementById('openCloseLabel');
+      const ind = document.getElementById('statusIndicator');
+
+      if (gameState.isOpen) {
+        label.textContent = '閉店する';
+        ind.className = 'w-2.5 h-2.5 rounded-full bg-emerald-300 inline-block animate-pulse';
+        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+        btn.classList.add('bg-red-600', 'hover:bg-red-700');
+        addLog('営業を開始しました。お客様が来店します。');
+      } else {
+        label.textContent = '開店する';
+        ind.className = 'w-2.5 h-2.5 rounded-full bg-red-400 inline-block';
+        btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+        btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+        addLog('営業を一時停止しました。');
+      }
+    }
+
+    function gameTick() {
+      if (!gameState.isOpen) return;
+
+      // 時間進行（1秒につき10分進行）
+      gameState.minute += 10;
+      if (gameState.minute >= 60) {
+        gameState.minute = 0;
+        gameState.hour++;
+      }
+
+      // 来店処理
+      spawnCustomers();
+
+      // バイト自動会計
+      processAutomatedRegisters();
+
+      // UI同期
+      updateHeaderStats();
+      if (!document.getElementById('section-uriba').classList.contains('hidden')) renderUribaGrid();
+      if (!document.getElementById('section-regi').classList.contains('hidden')) {
+        renderRegistersList();
+        refreshPosDisplay();
+      }
+
+      // 閉店時間 (22:00) チェック
+      if (gameState.hour >= 22) {
+        // レジ待ちがあるか確認
+        let totalRemaining = 0;
+        gameState.registers.forEach(r => totalRemaining += r.queue.length);
+        if (gameState.activeRegisterIndex !== null && gameState.posActiveBasket) totalRemaining++;
+
+        if (totalRemaining === 0) {
+          // レジ待ち解消で決算実行
+          triggerDailySettlement();
+        }
+      }
+    }
+
+    function triggerDailySettlement() {
+      gameState.isOpen = false;
+      toggleStoreOpen(); // ボタン状態を戻す
+
+      const laborCost = gameState.staffCount * (gameState.staffHourlyWage * 14);
+      const fixedCost = 15000 + 6000; // 家賃15,000 + 水道光熱費6,000
+      const totalExpense = gameState.dailyCost + laborCost + fixedCost;
+      const netProfit = gameState.dailySales - totalExpense;
+
+      // 諸費用引き落とし
+      gameState.money -= (laborCost + fixedCost);
+
+      document.getElementById('settlementDayTitle').textContent = `Day ${gameState.day} 決算報告書`;
+      document.getElementById('settleSales').textContent = `¥${gameState.dailySales.toLocaleString()}`;
+      document.getElementById('settleCost').textContent = `-¥${gameState.dailyCost.toLocaleString()}`;
+      document.getElementById('settleLabor').textContent = `-¥${laborCost.toLocaleString()}`;
+      document.getElementById('settleFixed').textContent = `-¥${fixedCost.toLocaleString()}`;
+      
+      const netEl = document.getElementById('settleNetProfit');
+      netEl.textContent = `${netProfit >= 0 ? '+' : ''}¥${netProfit.toLocaleString()}`;
+      netEl.className = `font-black text-base sm:text-lg ${netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`;
+
+      document.getElementById('settlementModal').classList.remove('hidden');
+      addLog(`Day ${gameState.day} の営業が終了しました。決算を行います。`);
+    }
+
+    function startNextDay() {
+      document.getElementById('settlementModal').classList.add('hidden');
+      gameState.day++;
+      gameState.hour = 8;
+      gameState.minute = 0;
+      gameState.dailySales = 0;
+      gameState.dailyCost = 0;
+
+      updateHeaderStats();
+      addLog(`Day ${gameState.day} の朝 08:00 になりました。開店準備を整えてください。`);
+    }
+
+    function updateHeaderStats() {
+      document.getElementById('headerDay').textContent = `Day ${gameState.day}`;
+      document.getElementById('headerTime').textContent = `${String(gameState.hour).padStart(2, '0')}:${String(gameState.minute).padStart(2, '0')}`;
+      
+      const moneyEl = document.getElementById('headerMoney');
+      moneyEl.textContent = `¥${gameState.money.toLocaleString()}`;
+      if (gameState.money < 0) {
+        moneyEl.classList.remove('text-emerald-600');
+        moneyEl.classList.add('text-red-600');
+      } else {
+        moneyEl.classList.add('text-emerald-600');
+        moneyEl.classList.remove('text-red-600');
+      }
+
+      // レジ待機列人数
+      let totalQueue = 0;
+      gameState.registers.forEach(r => totalQueue += r.queue.length);
+      document.getElementById('headerCustomerCount').textContent = `${totalQueue}人`;
+
+      // 事務タブの情報更新
+      const labor = gameState.staffCount * (gameState.staffHourlyWage * 14);
+      document.getElementById('officeDailyLaborCost').textContent = `¥${labor.toLocaleString()}`;
+      document.getElementById('officeDailySales').textContent = `¥${gameState.dailySales.toLocaleString()}`;
+    }
+
+    /* =========================================================
+       12. モーダル・チュートリアル制御
+       ========================================================= */
+    function openTutorialModal() {
+      document.getElementById('tutorialModal').classList.remove('hidden');
+    }
+    function closeTutorialModal() {
+      document.getElementById('tutorialModal').classList.add('hidden');
+    }
+
+    /* =========================================================
+       13. 起動時初期化
+       ========================================================= */
+    window.onload = function() {
+      renderUribaGrid();
+      renderInventoryTable();
+      renderRegistersList();
+      updateHeaderStats();
+
+      // ゲームループ起動 (1秒に1回進行)
+      gameInterval = setInterval(gameTick, 1000);
+    };
+  </script>
 </body>
 </html>
