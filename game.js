@@ -587,32 +587,141 @@
     const key = `${text}_${bgColor}_${textColor}_${width}_${height}`;
     if (textureCache[key]) return textureCache[key];
 
+    // 高解像度化: 小さいテクスチャ(幅512未満)は2倍解像度で内部描画してジャギーを防止
+    const scale = (width < 512 && height < 512) ? 2 : 1;
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = width * scale;
+    canvas.height = height * scale;
     const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
 
+    // 背景
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.strokeStyle = '#cccccc';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(4, 4, width - 8, height - 8);
+    // 枠線
+    ctx.strokeStyle = bgColor === '#ffffff' ? '#bdc3c7' : 'rgba(255, 255, 255, 0.4)';
+    const borderWidth = Math.max(2, Math.floor(Math.min(width, height) * 0.03));
+    ctx.lineWidth = borderWidth;
+    ctx.strokeRect(borderWidth / 2, borderWidth / 2, width - borderWidth, height - borderWidth);
+
+    // テキストを行ごとに分割
+    const lines = text.split('\n');
+
+    // 左右・上下のマージン (文字が見切れないよう10%余白を確保)
+    const padX = width * 0.10;
+    const padY = height * 0.10;
+    const maxAllowedWidth = width - padX * 2;
+    const maxAllowedHeight = height - padY * 2;
+
+    // 縦幅から初期フォントサイズを決定
+    let fontSize = Math.floor(maxAllowedHeight / (lines.length * 1.3));
+    if (lines.length === 1) {
+      fontSize = Math.floor(height * 0.48);
+    }
+    fontSize = Math.min(fontSize, 46);
+    fontSize = Math.max(fontSize, 11);
+
+    // 横幅が収まるようにフォントサイズを自動スケールダウン
+    ctx.font = `bold ${fontSize}px "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
+    for (let l = 0; l < lines.length; l++) {
+      const measured = ctx.measureText(lines[l]).width;
+      if (measured > maxAllowedWidth && measured > 0) {
+        const fitRatio = maxAllowedWidth / measured;
+        fontSize = Math.max(10, Math.floor(fontSize * fitRatio));
+        ctx.font = `bold ${fontSize}px "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
+      }
+    }
+
+    // 垂直方向の中央揃え
+    const lineSpacing = fontSize * 1.32;
+    const totalHeight = (lines.length - 1) * lineSpacing;
+    const startY = (height / 2) - (totalHeight / 2);
 
     ctx.fillStyle = textColor;
-    ctx.font = 'bold 32px "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    const lines = text.split('\n');
-    if (lines.length > 1) {
-      lines.forEach((line, i) => {
-        const yOffset = (height / 2) + (i - (lines.length - 1) / 2) * 36;
-        ctx.fillText(line, width / 2, yOffset);
-      });
-    } else {
-      ctx.fillText(text, width / 2, height / 2);
-    }
+    lines.forEach((line, i) => {
+      ctx.fillText(line, width / 2, startY + i * lineSpacing);
+    });
+
+    const texture = new THREE.CanvasTexture(canvas);
+    textureCache[key] = texture;
+    return texture;
+  }
+
+  function createWhiteboardTexture() {
+    const key = 'office_whiteboard_texture';
+    if (textureCache[key]) return textureCache[key];
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    // ホワイトボード白板面
+    ctx.fillStyle = '#fcfdfd';
+    ctx.fillRect(0, 0, 1024, 512);
+
+    // 外枠アルミフレーム (薄いシルバーグレー)
+    ctx.strokeStyle = '#95a5a6';
+    ctx.lineWidth = 14;
+    ctx.strokeRect(7, 7, 1010, 498);
+
+    // 内枠シャドウライン
+    ctx.strokeStyle = '#bdc3c7';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(16, 16, 992, 480);
+
+    // タイトルヘッダー背景 (落ち着いた濃紺)
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(24, 24, 976, 68);
+
+    // タイトルテキスト
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 32px "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('📋 【店舗運営・業務連絡・注意事項】', 512, 58);
+
+    // 注意事項リスト (左揃え・整然としたレイアウト)
+    const items = [
+      { num: '①', text: '発注した商品や什器は、バックヤード奥の【配達エリア】に届きます。', color: '#1a5276' },
+      { num: '②', text: '陳列棚・冷蔵棚は、黄色い矢印【正面】を通路に向けて配置してください。', color: '#7d6608' },
+      { num: '③', text: 'おにぎり・パン・飲料などのデイリー食品は、必ず【冷蔵棚】に陳列！', color: '#196f3d' },
+      { num: '④', text: '開店・閉店（時間進行）は、PC横の【操作スイッチ】または [O] キーで切替。', color: '#922b21' },
+      { num: '⑤', text: 'お客様がお会計待ちの際は、レジ前で [E] キーを押して精算を開始。', color: '#4a235a' }
+    ];
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const startY = 135;
+    const lineGap = 68;
+
+    items.forEach((item, index) => {
+      const y = startY + index * lineGap;
+
+      // 行の背景ハイライト (薄いグレー)
+      ctx.fillStyle = index % 2 === 0 ? 'rgba(236, 240, 241, 0.65)' : 'rgba(255, 255, 255, 0.4)';
+      ctx.fillRect(36, y - 24, 952, 48);
+
+      // 番号バッジ
+      ctx.fillStyle = item.color;
+      ctx.font = 'bold 26px "Noto Sans JP", sans-serif';
+      ctx.fillText(item.num, 54, y);
+
+      // 本文
+      ctx.fillStyle = '#2c3e50';
+      ctx.font = '600 24px "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif';
+      ctx.fillText(item.text, 100, y);
+    });
+
+    // 右下の注意書き
+    ctx.fillStyle = '#7f8c8d';
+    ctx.font = 'italic 18px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('※ 本日の営業目標: 廃棄ゼロ・顧客満足度100%達成！', 970, 480);
 
     const texture = new THREE.CanvasTexture(canvas);
     textureCache[key] = texture;
@@ -3554,7 +3663,7 @@
 
       // 連絡用ホワイトボード (奥壁 x = 9.0, y = 1.8, z = -6.83)
       const wbMat = new THREE.MeshBasicMaterial({
-        map: createLabelTexture('📋 店舗運営連絡事項\n① 発注品は裏の【配達エリア】に届きます\n② 棚は黄色矢印【正面】を通路へ向けて設置\n③ デイリー品(米飯・パン)は冷蔵棚へ陳列', '#ffffff', '#2c3e50', 512, 256)
+        map: createWhiteboardTexture()
       });
       const whiteboard = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.5), wbMat);
       whiteboard.position.set(9.0, 1.8, -6.83);
@@ -3623,7 +3732,7 @@
       group.add(drawer);
 
       // デュアルモニター
-      const screenTex = createLabelTexture('STORE POS & ORDER SYSTEM\n店舗売上・発注管理中', '#154360', '#5dade2', 256, 128);
+      const screenTex = createLabelTexture('STORE POS & ORDER SYSTEM\n店舗売上・発注管理中', '#154360', '#5dade2', 512, 256);
       const screenMat = new THREE.MeshBasicMaterial({ map: screenTex });
 
       [-0.32, 0.32].forEach((mx, mi) => {
@@ -3672,10 +3781,10 @@
       chairGroup.add(chairPole);
       group.add(chairGroup);
 
-      // 頭上案内看板 (インタラクトプロンプト)
+      // 頭上案内看板 (インタラクトプロンプト・見切れ防止高精細描画)
       const signGeo = new THREE.BoxGeometry(1.6, 0.36, 0.06);
       const signMat = new THREE.MeshBasicMaterial({
-        map: createLabelTexture('💻 店舗管理・発注PC [TAB / E]', '#2980b9', '#ffffff', 256, 64)
+        map: createLabelTexture('💻 店舗管理・発注PC\n[E] または [TAB] で操作', '#2980b9', '#ffffff', 512, 128)
       });
       const sign = new THREE.Mesh(signGeo, signMat);
       sign.position.set(0, 1.5, -0.2);
@@ -3724,14 +3833,14 @@
       group.add(light);
       this.openCloseLight = light;
 
-      // 3D頭上ステータス看板
+      // 3D頭上ステータス看板 (見切れ防止512x256高精細描画)
       const signGeo = new THREE.PlaneGeometry(0.95, 0.48);
       const signText = isRunning
-        ? '🟢 営業中 (OPEN)\n[E] 閉店・一時停止'
-        : '🔴 準備中 (CLOSED)\n[E] 開店する';
+        ? '🟢 営業中 (OPEN)\n[E] または クリックで閉店'
+        : '🔴 準備中 (CLOSED)\n[E] または クリックで開店';
       const signBg = isRunning ? '#1e824c' : '#c0392b';
       const signMat = new THREE.MeshBasicMaterial({
-        map: createLabelTexture(signText, signBg, '#ffffff', 256, 128),
+        map: createLabelTexture(signText, signBg, '#ffffff', 512, 256),
         side: THREE.DoubleSide
       });
       const sign = new THREE.Mesh(signGeo, signMat);
@@ -3757,10 +3866,10 @@
       }
       if (this.openCloseSignMesh) {
         const text = isRunning
-          ? '🟢 営業中 (OPEN)\n[E] 閉店・一時停止'
-          : '🔴 準備中 (CLOSED)\n[E] 開店する';
+          ? '🟢 営業中 (OPEN)\n[E] または クリックで閉店'
+          : '🔴 準備中 (CLOSED)\n[E] または クリックで開店';
         const bgCol = isRunning ? '#1e824c' : '#c0392b';
-        this.openCloseSignMesh.material.map = createLabelTexture(text, bgCol, '#ffffff', 256, 128);
+        this.openCloseSignMesh.material.map = createLabelTexture(text, bgCol, '#ffffff', 512, 256);
         this.openCloseSignMesh.material.needsUpdate = true;
       }
       if (this.openCloseLight) {
