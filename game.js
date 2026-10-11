@@ -728,6 +728,370 @@
     return texture;
   }
 
+  function createSecurityCamScreenTexture() {
+    const key = 'office_security_cam_texture';
+    if (textureCache[key]) return textureCache[key];
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    // 背景 (ダークUI)
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 1024, 512);
+
+    // ヘッダーバー (監視カメラシステム)
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, 1024, 48);
+
+    // ウィンドウタイトル
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 20px "Noto Sans JP", monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('📹 CCTV SECURITY SURVEILLANCE SYSTEM v3.4 [店内・搬入口 4分割監視]', 20, 24);
+
+    // 録画中インジケーター (赤丸点滅風)
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(880, 24, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText('REC 🔴 08:35:12', 895, 24);
+
+    // 4分割カメラの描画
+    const cams = [
+      { name: 'CAM 01: 店舗正面・売場全景', status: 'LIVE / MOTION ACTIVE', color: '#22c55e', bg: '#09151e' },
+      { name: 'CAM 02: レジカウンター #01', status: 'LIVE / POS QUEUE OK', color: '#38bdf8', bg: '#0d1822' },
+      { name: 'CAM 03: バックヤード・保管庫', status: 'LIVE / AREA SECURE', color: '#22c55e', bg: '#0b1620' },
+      { name: 'CAM 04: 屋外・荷受配達エリア', status: 'LIVE / CARGO CLEAR', color: '#eab308', bg: '#101d24' }
+    ];
+
+    const camW = 492;
+    const camH = 210;
+    const padX = 14;
+    const startY = 58;
+
+    cams.forEach((cam, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const cx = padX + col * (camW + 12);
+      const cy = startY + row * (camH + 10);
+
+      // カメラ背景
+      ctx.fillStyle = cam.bg;
+      ctx.fillRect(cx, cy, camW, camH);
+
+      // カメラ枠線
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cx, cy, camW, camH);
+
+      // 擬似パースペクティブ（透視線・床グリッド）
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+      ctx.lineWidth = 1;
+      for (let g = 0; g <= camW; g += 40) {
+        ctx.beginPath();
+        ctx.moveTo(cx + g, cy + camH);
+        ctx.lineTo(cx + camW / 2 + (g - camW / 2) * 0.3, cy + camH * 0.4);
+        ctx.stroke();
+      }
+      for (let h = 0.4; h <= 1.0; h += 0.15) {
+        ctx.beginPath();
+        ctx.moveTo(cx + 20, cy + camH * h);
+        ctx.lineTo(cx + camW - 20, cy + camH * h);
+        ctx.stroke();
+      }
+
+      // カメラ内の物体・人物トラッキング枠（AI検知ボックス）
+      if (i === 0) {
+        // 売場の人物トラッキング
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cx + 180, cy + 60, 70, 110);
+        ctx.fillStyle = '#22c55e';
+        ctx.font = '11px monospace';
+        ctx.fillText('CUSTOMER #04 (98%)', cx + 180, cy + 52);
+
+        ctx.strokeStyle = '#38bdf8';
+        ctx.strokeRect(cx + 310, cy + 75, 65, 95);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText('CUSTOMER #05 (94%)', cx + 310, cy + 67);
+      } else if (i === 1) {
+        // レジPOSトラッキング
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cx + 140, cy + 80, 110, 80);
+        ctx.fillStyle = '#eab308';
+        ctx.font = '11px monospace';
+        ctx.fillText('POS TERMINAL [IDLE]', cx + 140, cy + 72);
+      } else if (i === 3) {
+        // 配達エリアのパレット・荷受枠
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cx + 190, cy + 90, 120, 70);
+        ctx.fillStyle = '#f97316';
+        ctx.font = '11px monospace';
+        ctx.fillText('DELIVERY ZONE [READY]', cx + 190, cy + 82);
+      }
+
+      // カメラ名オーバーレイ（左上）
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+      ctx.fillRect(cx + 8, cy + 8, 220, 24);
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 13px "Noto Sans JP", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(cam.name, cx + 14, cy + 24);
+
+      // ステータス（右下）
+      ctx.fillStyle = cam.color;
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(cam.status, cx + camW - 12, cy + camH - 12);
+
+      // 十字照準（クロスヘア）
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.beginPath();
+      ctx.moveTo(cx + camW / 2 - 12, cy + camH / 2);
+      ctx.lineTo(cx + camW / 2 + 12, cy + camH / 2);
+      ctx.moveTo(cx + camW / 2, cy + camH / 2 - 12);
+      ctx.lineTo(cx + camW / 2, cy + camH / 2 + 12);
+      ctx.stroke();
+    });
+
+    // フッターステータスバー
+    ctx.fillStyle = '#0b1120';
+    ctx.fillRect(0, 484, 1024, 28);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('SYSTEM: NORMAL | STORAGE: 4.2TB / 8.0TB (52%) | FPS: 30.0 | ENCRYPTION: AES-256 | NETWORK: 1Gbps OPTICAL', 16, 500);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    textureCache[key] = texture;
+    return texture;
+  }
+
+  function createErpOrderScreenTexture() {
+    const key = 'office_erp_order_texture';
+    if (textureCache[key]) return textureCache[key];
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    // Windows 11 デスクトップ背景
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, 1024, 512);
+
+    // アプリケーションウィンドウ
+    const winX = 12, winY = 12, winW = 1000, winH = 460;
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(winX, winY, winW, winH);
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(winX, winY, winW, winH);
+
+    // ウィンドウタイトルバー
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillRect(winX, winY, winW, 40);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px "Noto Sans JP", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🏪 SuperConveni HQ ERP Suite v5.2 - [店舗発注・在庫リアルタイム管理]', winX + 16, winY + 20);
+
+    // ウィンドウ右上の最小化・最大化・閉じるボタン
+    [-56, -34, -12].forEach((bx, bi) => {
+      ctx.fillStyle = bi === 2 ? '#ef4444' : '#64748b';
+      ctx.fillRect(winX + winW + bx, winY + 12, 16, 16);
+    });
+
+    // 左サイドバー (ナビゲーションメニュー)
+    const sideW = 200;
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(winX, winY + 40, sideW, winH - 40);
+
+    const menuItems = [
+      { name: '📦 商品発注', active: true },
+      { name: '🛠️ 備品・什器発注', active: false },
+      { name: '📊 リアルタイム売上', active: false },
+      { name: '📋 在庫補充アラート', active: false },
+      { name: '🚚 納品配送追跡', active: false },
+      { name: '👥 スタッフ管理', active: false }
+    ];
+
+    menuItems.forEach((item, mi) => {
+      const my = winY + 54 + mi * 44;
+      if (item.active) {
+        ctx.fillStyle = '#2563eb';
+        ctx.fillRect(winX + 8, my - 6, sideW - 16, 36);
+        ctx.fillStyle = '#ffffff';
+      } else {
+        ctx.fillStyle = '#94a3b8';
+      }
+      ctx.font = 'bold 14px "Noto Sans JP", sans-serif';
+      ctx.fillText(item.name, winX + 22, my + 12);
+    });
+
+    // メインコンテンツエリア (右側)
+    const mainX = winX + sideW + 16;
+    const mainY = winY + 52;
+    const mainW = winW - sideW - 32;
+
+    // 上部 KPI ダッシュボードカード (3枚)
+    const kpis = [
+      { label: '本日総売上', val: '¥64,800', sub: '前日比 +14.2%', col: '#22c55e' },
+      { label: '来店客数', val: '148 人', sub: 'ピーク: 昼ラッシュ', col: '#38bdf8' },
+      { label: '棚在庫充足率', val: '94.6 %', sub: '要補充: 2件', col: '#eab308' }
+    ];
+
+    const kpiW = (mainW - 24) / 3;
+    kpis.forEach((kpi, ki) => {
+      const kx = mainX + ki * (kpiW + 12);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(kx, mainY, kpiW, 76);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(kx, mainY, kpiW, 76);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px "Noto Sans JP", sans-serif';
+      ctx.fillText(kpi.label, kx + 12, mainY + 18);
+
+      ctx.fillStyle = kpi.col;
+      ctx.font = 'bold 22px "Noto Sans JP", monospace';
+      ctx.fillText(kpi.val, kx + 12, mainY + 44);
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(kpi.sub, kx + 12, mainY + 64);
+    });
+
+    // 時間帯別売上グラフ (バーチャート)
+    const chartY = mainY + 92;
+    const chartW = mainW * 0.54;
+    const chartH = 180;
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(mainX, chartY, chartW, chartH);
+    ctx.strokeStyle = '#334155';
+    ctx.strokeRect(mainX, chartY, chartW, chartH);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 13px "Noto Sans JP", sans-serif';
+    ctx.fillText('📈 時間帯別 売上・客数推移', mainX + 12, chartY + 20);
+
+    const bars = [18, 42, 65, 85, 48, 52, 92, 78, 60, 40];
+    const barW = (chartW - 40) / bars.length;
+    bars.forEach((b, bi) => {
+      const bh = (b / 100) * 110;
+      const bx = mainX + 24 + bi * barW;
+      const by = chartY + chartH - 30 - bh;
+
+      ctx.fillStyle = bi === 6 ? '#22c55e' : (bi === 3 ? '#38bdf8' : '#3b82f6');
+      ctx.fillRect(bx, by, barW - 6, bh);
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${8 + bi}h`, bx + (barW - 6) / 2, chartY + chartH - 12);
+    });
+
+    // 右側: 在庫アラート＆発注ステータス表
+    ctx.textAlign = 'left';
+    const tblX = mainX + chartW + 14;
+    const tblW = mainW - chartW - 14;
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(tblX, chartY, tblW, chartH);
+    ctx.strokeStyle = '#334155';
+    ctx.strokeRect(tblX, chartY, tblW, chartH);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 13px "Noto Sans JP", sans-serif';
+    ctx.fillText('📋 在庫状況・発注サマリー', tblX + 12, chartY + 20);
+
+    const stockItems = [
+      { name: '🍙 特製おにぎり', stock: '14 / 18', status: '適正', col: '#22c55e' },
+      { name: '🥪 サンドイッチ', stock: '6 / 18', status: '要補充⚠️', col: '#eab308' },
+      { name: '🍵 緑茶 500ml', stock: '18 / 18', status: '満杯', col: '#38bdf8' },
+      { name: '🍫 板チョコレート', stock: '12 / 18', status: '適正', col: '#22c55e' }
+    ];
+
+    stockItems.forEach((st, si) => {
+      const sy = chartY + 44 + si * 32;
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '12px "Noto Sans JP", sans-serif';
+      ctx.fillText(st.name, tblX + 12, sy);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px monospace';
+      ctx.fillText(st.stock, tblX + 160, sy);
+
+      ctx.fillStyle = st.col;
+      ctx.font = 'bold 11px "Noto Sans JP", sans-serif';
+      ctx.fillText(st.status, tblX + tblW - 65, sy);
+    });
+
+    // 下部クイック操作アクション
+    const actY = chartY + chartH + 12;
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(mainX, actY, mainW, 60);
+    ctx.strokeStyle = '#334155';
+    ctx.strokeRect(mainX, actY, mainW, 60);
+
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(mainX + 16, actY + 12, 160, 36);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px "Noto Sans JP", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🛒 発注カタログを開く', mainX + 96, actY + 30);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(mainX + 190, actY + 12, 150, 36);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('📦 配達エリア状況確認', mainX + 265, actY + 30);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px "Noto Sans JP", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('※ [TAB] または [E] で詳細発注画面を開けます', mainX + mainW - 16, actY + 30);
+
+    // 最下部 Windows タスクバー
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 480, 1024, 32);
+    ctx.strokeStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.moveTo(0, 480);
+    ctx.lineTo(1024, 480);
+    ctx.stroke();
+
+    // スタートボタンアイコン
+    ctx.fillStyle = '#3b82f6';
+    ctx.fillRect(16, 486, 20, 20);
+
+    // 検索バー
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(48, 486, 120, 20);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('🔍 検索', 56, 496);
+
+    // 右端タスクバー時計
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('14:35  2026/10/10', 1008, 496);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    textureCache[key] = texture;
+    return texture;
+  }
+
   function createFloorTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -2887,6 +3251,14 @@
         });
       }
 
+      const btnCloseTutorialX = document.getElementById('btn-close-tutorial-x');
+      if (btnCloseTutorialX) {
+        btnCloseTutorialX.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.tutorialModal.classList.add('hidden');
+        });
+      }
+
       if (this.btnToggleClock) {
         this.btnToggleClock.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -3116,6 +3488,11 @@
       this.hudDay.textContent = `Day ${this.store.dayNumber}`;
       this.hudCash.textContent = `所持金: ¥${this.store.cash.toLocaleString()}`;
       this.hudRevenue.textContent = `本日売上: ¥${this.store.dailyRevenue.toLocaleString()}`;
+
+      const pcCash = document.getElementById('pc-cash-display');
+      if (pcCash) {
+        pcCash.textContent = `¥${this.store.cash.toLocaleString()}`;
+      }
 
       const hour = this.store.hour;
       let statusText = '通常営業';
@@ -3731,20 +4108,44 @@
       drawer.position.set(0.55, 0.35, 0);
       group.add(drawer);
 
-      // デュアルモニター
-      const screenTex = createLabelTexture('STORE POS & ORDER SYSTEM\n店舗売上・発注管理中', '#154360', '#5dade2', 512, 256);
-      const screenMat = new THREE.MeshBasicMaterial({ map: screenTex });
+      // デュアルモニター (左: 防犯CCTV 4分割監視システム, 右: 本部ERP 発注・在庫ダッシュボード)
+      const monitorBezelMat = new THREE.MeshLambertMaterial({ color: 0x182026 });
+      const leftScreenMat = new THREE.MeshBasicMaterial({ map: createSecurityCamScreenTexture() });
+      const rightScreenMat = new THREE.MeshBasicMaterial({ map: createErpOrderScreenTexture() });
 
-      [-0.32, 0.32].forEach((mx, mi) => {
-        const monitor = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.36, 0.04), screenMat);
-        monitor.position.set(mx, 1.05, -0.15);
-        monitor.rotation.y = mi === 0 ? 0.08 : -0.08;
-        group.add(monitor);
+      // 左モニター (CCTV 監視カメラ)
+      const leftMaterials = [
+        monitorBezelMat, monitorBezelMat, monitorBezelMat, monitorBezelMat,
+        leftScreenMat, monitorBezelMat
+      ];
+      const leftMonitor = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.36, 0.03), leftMaterials);
+      leftMonitor.position.set(-0.33, 1.05, -0.15);
+      leftMonitor.rotation.y = 0.14;
+      group.add(leftMonitor);
 
-        const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.25), deskMat);
-        stand.position.set(mx, 0.88, -0.15);
-        group.add(stand);
-      });
+      const leftStand = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.25), deskMat);
+      leftStand.position.set(-0.33, 0.88, -0.15);
+      group.add(leftStand);
+      const leftBase = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.015, 0.16), monitorBezelMat);
+      leftBase.position.set(-0.33, 0.77, -0.15);
+      group.add(leftBase);
+
+      // 右モニター (ERP Suite 発注・売上在庫管理)
+      const rightMaterials = [
+        monitorBezelMat, monitorBezelMat, monitorBezelMat, monitorBezelMat,
+        rightScreenMat, monitorBezelMat
+      ];
+      const rightMonitor = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.36, 0.03), rightMaterials);
+      rightMonitor.position.set(0.33, 1.05, -0.15);
+      rightMonitor.rotation.y = -0.14;
+      group.add(rightMonitor);
+
+      const rightStand = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.25), deskMat);
+      rightStand.position.set(0.33, 0.88, -0.15);
+      group.add(rightStand);
+      const rightBase = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.015, 0.16), monitorBezelMat);
+      rightBase.position.set(0.33, 0.77, -0.15);
+      group.add(rightBase);
 
       // キーボード ＆ マウス
       const kbMat = new THREE.MeshLambertMaterial({ color: 0x111111 });

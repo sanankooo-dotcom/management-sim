@@ -147,28 +147,54 @@
   </div>
 
   <!-- ======================================================== -->
+  <!-- ======================================================== -->
   <!-- 2. 店舗発注・管理PCモーダル [TAB] -->
   <!-- ======================================================== -->
   <div id="management-modal" class="modal-overlay hidden">
     <div class="pc-window">
+      <!-- Windows / ERP スイート風 タイトルバー -->
       <div class="pc-titlebar">
-        <div class="pc-title">🏪 コンビニ本部発注システム & 店舗管理</div>
-        <button id="btn-close-pc" class="btn-close-window">✕ 閉じる</button>
+        <div class="pc-title">
+          <span class="pc-app-icon">🏪</span>
+          <span class="pc-app-title">SuperConveni Enterprise ERP Suite v5.2</span>
+          <span class="pc-app-subtitle">－ [店舗発注・在庫ロジスティクス管理端末]</span>
+        </div>
+        <div class="pc-window-controls">
+          <button class="win-btn win-min" title="最小化" tabindex="-1">_</button>
+          <button class="win-btn win-max" title="最大化" tabindex="-1">🗖</button>
+          <button id="btn-close-pc" class="win-btn win-close" title="閉じる (Esc / Tab)">✕ 閉じる</button>
+        </div>
+      </div>
+
+      <!-- システムステータス・サブバー (接続状態・金庫残高・納品先) -->
+      <div class="pc-subbar">
+        <div class="pc-subbar-left">
+          <span class="pc-badge-live"><span class="live-dot"></span> 本部基幹サーバー直結</span>
+          <span class="pc-meta-item">🏢 店舗: <b>7784号店 (中央通り店)</b></span>
+          <span class="pc-meta-item">👤 権限: <b>店長 (ADMIN)</b></span>
+          <span class="pc-meta-item">📍 納品先: <b>屋外荷受エリア (受取ゾーン)</b></span>
+        </div>
+        <div class="pc-subbar-right">
+          <div class="pc-cash-chip">
+            <span class="chip-label">💳 店舗金庫残高:</span>
+            <span class="chip-val" id="pc-cash-display">¥100,000</span>
+          </div>
+        </div>
       </div>
 
       <!-- カテゴリタブ -->
       <div class="pc-tabs">
-        <button class="tab-btn active" data-tab="tab-fixtures">🛠️ 備品 (棚・レジ)</button>
-        <button class="tab-btn" data-tab="tab-daily">🍙 デイリー (米飯・パン)</button>
-        <button class="tab-btn" data-tab="tab-nondaily">🍫 非デイリー (お菓子・ドリンク)</button>
-        <button class="tab-btn" data-tab="tab-staff">👔 スタッフ雇用</button>
+        <button class="tab-btn active" data-tab="tab-fixtures">🛠️ 什器・店舗備品 (棚・レジ)</button>
+        <button class="tab-btn" data-tab="tab-daily">🍙 デイリー商品 (米飯・パン / 冷蔵)</button>
+        <button class="tab-btn" data-tab="tab-nondaily">🍫 非デイリー商品 (菓子・飲料 / 常温)</button>
+        <button class="tab-btn" data-tab="tab-staff">👔 スタッフ雇用 (店員配置)</button>
       </div>
 
       <div class="pc-content">
         <!-- 備品タブ -->
         <div id="tab-fixtures" class="tab-pane active">
           <div class="catalog-notice">
-            ※最初は店内に棚もレジもありません。購入した備品（棚・レジカウンター）は<b>バックヤード奥の勝手口から出た屋外の「配達エリア」</b>に届きます。<kbd>E</kbd> で持ち運び、売場に自由に配置してください。
+            ※最初は店内に棚もレジもありません。購入した備品（棚・レジカウンター）は<b>バックヤード奥の勝手口から出た屋外の「配達受取エリア」</b>に届きます。<kbd>E</kbd> で持ち運び、売場に自由に配置してください。
           </div>
           <div id="pc-fixture-list" class="catalog-grid"></div>
         </div>
@@ -192,9 +218,25 @@
         <!-- スタッフタブ -->
         <div id="tab-staff" class="tab-pane">
           <div class="catalog-notice">
-            店舗で働く従業員を雇用できます。雇用すると制服を着たスタッフが店内に可視化されます。
+            店舗で働く従業員を雇用できます。雇用すると制服を着たスタッフが店内に可視化配置されます。
           </div>
           <div id="pc-employee-list" class="catalog-grid"></div>
+        </div>
+      </div>
+
+      <!-- フッター ステータスバー -->
+      <div class="pc-statusbar">
+        <div class="pc-sb-left">
+          <span>🔒 SSL/TLS 256bit Encrypted</span>
+          <span class="sb-sep">|</span>
+          <span>Protocol: AGY-ERP/v5.2</span>
+          <span class="sb-sep">|</span>
+          <span>Latency: 14ms</span>
+          <span class="sb-sep">|</span>
+          <span>HQ DB Sync: OK</span>
+        </div>
+        <div class="pc-sb-right">
+          <span>※発注した商品は即座に店舗裏の配達受取エリアに届きます</span>
         </div>
       </div>
     </div>
@@ -208,6 +250,7 @@
       <div class="tutorial-header">
         <h2>🏪 スーパーマーケット開店チュートリアル</h2>
         <span class="sub-header">あなただけのスーパーマーケットを作ろう！</span>
+        <button id="btn-close-tutorial-x" class="btn-close-modal-x" title="閉じる">✕</button>
       </div>
 
       <div class="tutorial-body">
