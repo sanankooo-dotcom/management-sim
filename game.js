@@ -574,6 +574,25 @@
       osc.start();
       osc.stop(this.ctx.currentTime + 0.12);
     }
+
+    playSaveSound() {
+      this.init();
+      if (!this.ctx) return;
+      const freqs = [523.25, 659.25, 783.99, 1046.50];
+      freqs.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        const startT = this.ctx.currentTime + idx * 0.08;
+        osc.frequency.setValueAtTime(freq, startT);
+        gain.gain.setValueAtTime(0.18, startT);
+        gain.gain.exponentialRampToValueAtTime(0.001, startT + 0.35);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(startT);
+        osc.stop(startT + 0.35);
+      });
+    }
   }
 
   const soundManager = new SoundManager();
@@ -2081,6 +2100,9 @@
 
       this.updateVisuals();
       soundManager.playPlaceItem();
+      if (typeof SaveManager !== 'undefined' && window.game) {
+        SaveManager.save(window.game, false);
+      }
       return canAdd;
     }
 
@@ -2151,6 +2173,7 @@
       this.registerQueue = [];
       this.currentRegisterCustomer = null;
       this.dayNumber = 1;
+      this.hiredEmployees = [];
     }
 
     update(delta) {
@@ -2215,6 +2238,9 @@
 
       // 仕様: 発注した備品(棚・レジ)はダンボールに入った状態で店の外に配達される
       this.spawnFixtureDeliveryBox(fixture);
+      if (window.game && window.game.multiplayer) {
+        window.game.multiplayer.broadcastPurchase(true, fixtureId, 1, this.cash, this.dailyCost);
+      }
       return { success: true, fixture };
     }
 
@@ -2231,6 +2257,9 @@
 
       // 仕様: 発注した商品はダンボールに入った状態で店の外に配達される
       this.spawnDeliveryBox(item, count);
+      if (window.game && window.game.multiplayer) {
+        window.game.multiplayer.broadcastPurchase(false, itemId, count, this.cash, this.dailyCost);
+      }
       return { success: true, item, count };
     }
 
@@ -3192,6 +3221,10 @@
 
       const changeMsg = dueChange > 0 ? ` (おつり: ¥${dueChange.toLocaleString()})` : ' (おつりなし)';
       this.showToast(`お会計完了！ 売上 +¥${this.subtotal.toLocaleString()}${changeMsg}`);
+      if (window.game && window.game.multiplayer) {
+        window.game.multiplayer.broadcastCheckout(this.subtotal);
+      }
+      SaveManager.save(window.game, false);
 
       // 次の客がいれば少し待って次の会計を開く、いなければレジを閉じる
       if (this.nextCustTimer) clearTimeout(this.nextCustTimer);
@@ -3282,6 +3315,32 @@
         });
       }
 
+      const btnHudSave = document.getElementById('btn-hud-save');
+      if (btnHudSave) {
+        btnHudSave.addEventListener('click', (e) => {
+          e.stopPropagation();
+          SaveManager.save(this.game, true);
+        });
+      }
+
+      const btnHudTitle = document.getElementById('btn-hud-title');
+      if (btnHudTitle) {
+        btnHudTitle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm('ゲームデータを保存してタイトル画面に戻りますか？')) {
+            this.game.returnToTitle();
+          }
+        });
+      }
+
+      const btnPcSave = document.getElementById('btn-pc-save');
+      if (btnPcSave) {
+        btnPcSave.addEventListener('click', (e) => {
+          e.stopPropagation();
+          SaveManager.save(this.game, true);
+        });
+      }
+
       const btnShowTutorial = document.getElementById('btn-show-tutorial');
       if (btnShowTutorial) {
         btnShowTutorial.addEventListener('click', (e) => {
@@ -3296,6 +3355,7 @@
         btnNextDay.addEventListener('click', (e) => {
           e.stopPropagation();
           this.store.advanceToNextDay();
+          SaveManager.save(this.game, false);
           this.dayEndModal.classList.add('hidden');
           if (this.btnToggleClock) {
             this.btnToggleClock.textContent = '▶ 開店 (時間を進める)';
@@ -3308,6 +3368,7 @@
       }
 
       window.addEventListener('store-day-ended', (e) => {
+        SaveManager.save(this.game, false);
         this.showDayEndModal(e.detail);
       });
 
@@ -3446,10 +3507,15 @@
           }
           this.store.cash -= 8000;
           this.store.dailyCost += 8000;
+          if (!this.store.hiredEmployees) this.store.hiredEmployees = [];
+          if (!this.store.hiredEmployees.includes('田中さん')) {
+            this.store.hiredEmployees.push('田中さん');
+          }
           this.game.customerManager.addEmployee('田中さん');
           btnHire.disabled = true;
           btnHire.textContent = '雇用済み';
           this.showToast('田中さんを雇用しました！店舗内にスタッフが配置されました。');
+          SaveManager.save(this.game, false);
         });
       }
     }
@@ -3460,6 +3526,7 @@
         this.showToast(res.msg);
         return;
       }
+      SaveManager.save(this.game, false);
       this.showToast(`【配達完了】店の外に『${res.fixture.name}』の大型ダンボールが届きました！外から運んで設置してください。`);
     }
 
@@ -3469,6 +3536,7 @@
         this.showToast(res.msg);
         return;
       }
+      SaveManager.save(this.game, false);
       this.showToast(`【配達完了】店の外に『${res.item.name}』の段ボールが届きました！`);
     }
 
@@ -3573,6 +3641,1017 @@
       if (this.game && typeof this.game.updateOpenCloseSwitchVisuals === 'function') {
         this.game.updateOpenCloseSwitchVisuals();
       }
+      if (this.game && this.game.multiplayer) {
+        this.game.multiplayer.broadcastClockToggle(this.store.isTimeRunning);
+      }
+    }
+  }
+
+  // ========================================================
+  // 7.5 セーブ＆ロードシステム (LocalStorage 自動＆手動セーブ)
+  // ========================================================
+  const SAVE_STORAGE_KEY = 'supermarket_sim_savedata_v1';
+
+  class SaveManager {
+    static hasSave() {
+      try {
+        const item = localStorage.getItem(SAVE_STORAGE_KEY);
+        return !!item;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    static getSaveSummary() {
+      try {
+        const str = localStorage.getItem(SAVE_STORAGE_KEY);
+        if (!str) return null;
+        const data = JSON.parse(str);
+        return {
+          dateStr: data.dateStr || '不明',
+          dayNumber: data.store ? data.store.dayNumber : 1,
+          hour: data.store ? data.store.hour : 8,
+          minute: data.store ? data.store.minute : 0,
+          cash: data.store ? data.store.cash : 0,
+          shelvesCount: data.shelves ? data.shelves.length : 0,
+          hasRegister: !!data.register
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+
+    static getSnapshot(game) {
+      if (!game || !game.store) return null;
+      return {
+        store: {
+          cash: game.store.cash,
+          dayNumber: game.store.dayNumber,
+          hour: game.store.hour,
+          minute: game.store.minute,
+          dailyRevenue: game.store.dailyRevenue,
+          dailyCost: game.store.dailyCost,
+          dailyCustomersServed: game.store.dailyCustomersServed,
+          isTimeRunning: !!game.store.isTimeRunning,
+          hiredEmployees: game.store.hiredEmployees || []
+        },
+        shelves: game.store.shelves.map(shelf => ({
+          type: shelf.type,
+          position: { x: shelf.mesh.position.x, y: shelf.mesh.position.y, z: shelf.mesh.position.z },
+          rotationY: shelf.mesh.rotation.y,
+          slots: shelf.slots.filter(s => s && s.count > 0).map(s => ({ itemId: s.itemId, count: s.count }))
+        })),
+        register: game.store.register ? {
+          position: { x: game.store.register.mesh.position.x, y: game.store.register.mesh.position.y, z: game.store.register.mesh.position.z },
+          rotationY: game.store.register.mesh.rotation.y
+        } : null,
+        deliveryBoxes: game.store.deliveryBoxes.map(b => ({
+          isFixtureBox: !!b.isFixtureBox,
+          fixtureId: b.fixture ? b.fixture.id : null,
+          itemId: b.item ? b.item.id : null,
+          count: b.count || 0,
+          itemName: b.itemName || '',
+          position: { x: b.mesh.position.x, y: b.mesh.position.y, z: b.mesh.position.z }
+        }))
+      };
+    }
+
+    static applySnapshot(game, data) {
+      if (!game || !game.store || !data || !data.store) return false;
+
+      // 1. 既存の棚・レジ・配達箱・客・スタッフをクリーンアップ
+      game.store.shelves.forEach(s => game.store.scene.remove(s.mesh));
+      game.store.shelves = [];
+
+      if (game.store.register) {
+        game.store.scene.remove(game.store.register.mesh);
+        game.store.register = null;
+      }
+
+      game.store.deliveryBoxes.forEach(b => game.store.scene.remove(b.mesh));
+      game.store.deliveryBoxes = [];
+
+      if (game.customerManager) {
+        game.customerManager.customers.forEach(c => game.customerManager.scene.remove(c.mesh));
+        game.customerManager.customers = [];
+        game.customerManager.employees.forEach(e => game.customerManager.scene.remove(e.mesh));
+        game.customerManager.employees = [];
+      }
+
+      // 2. 店舗ステータス復元
+      game.store.cash = data.store.cash !== undefined ? data.store.cash : 60000;
+      game.store.dayNumber = data.store.dayNumber || 1;
+      game.store.hour = data.store.hour !== undefined ? data.store.hour : 8;
+      game.store.minute = data.store.minute !== undefined ? data.store.minute : 0;
+      game.store.dailyRevenue = data.store.dailyRevenue || 0;
+      game.store.dailyCost = data.store.dailyCost || 0;
+      game.store.dailyCustomersServed = data.store.dailyCustomersServed || 0;
+      game.store.isTimeRunning = !!data.store.isTimeRunning;
+      game.store.dayEndedFired = false;
+      game.store.hiredEmployees = data.store.hiredEmployees || [];
+
+      // 3. 棚の復元
+      if (Array.isArray(data.shelves)) {
+        data.shelves.forEach(sData => {
+          const shelf = game.store.addShelf(
+            sData.type,
+            new THREE.Vector3(sData.position.x, sData.position.y, sData.position.z),
+            sData.rotationY || 0
+          );
+          shelf.slots = Array.isArray(sData.slots) ? sData.slots.map(sl => ({ itemId: sl.itemId, count: sl.count })) : [];
+          shelf.updateVisuals();
+        });
+      }
+
+      // 4. レジの復元
+      if (data.register && data.register.position) {
+        game.store.setRegister(
+          new THREE.Vector3(data.register.position.x, data.register.position.y, data.register.position.z),
+          data.register.rotationY || 0
+        );
+      }
+
+      // 5. 配達箱の復元
+      if (Array.isArray(data.deliveryBoxes)) {
+        data.deliveryBoxes.forEach(bData => {
+          const pos = new THREE.Vector3(bData.position.x, bData.position.y, bData.position.z);
+          if (bData.isFixtureBox) {
+            const fixture = FIXTURE_CATALOG.find(f => f.id === bData.fixtureId);
+            if (fixture) {
+              const boxMesh = createDeliveryBoxMesh({ isFixture: true, fixture });
+              game.store.placeBoxInDeliveryZone(boxMesh, pos);
+              game.store.deliveryBoxes.push({
+                isFixtureBox: true,
+                fixture,
+                mesh: boxMesh,
+                itemName: `[備品] ${fixture.name}`
+              });
+            }
+          } else {
+            const item = ITEM_CATALOG.find(i => i.id === bData.itemId);
+            if (item) {
+              const boxMesh = createDeliveryBoxMesh({ isFixture: false, item, count: bData.count });
+              game.store.placeBoxInDeliveryZone(boxMesh, pos);
+              game.store.deliveryBoxes.push({
+                isFixtureBox: false,
+                item,
+                count: bData.count,
+                mesh: boxMesh,
+                itemName: item.name
+              });
+            }
+          }
+        });
+      }
+
+      // 6. スタッフ復元
+      if (Array.isArray(game.store.hiredEmployees)) {
+        game.store.hiredEmployees.forEach(empName => {
+          game.customerManager.addEmployee(empName);
+        });
+        if (game.store.hiredEmployees.includes('田中さん')) {
+          const btnHire = document.getElementById('btn-hire-tanaka');
+          if (btnHire) {
+            btnHire.disabled = true;
+            btnHire.textContent = '雇用済み';
+          }
+        }
+      }
+
+      // 7. UI 同期
+      game.ui.update();
+      if (game.ui.btnToggleClock) {
+        if (game.store.isTimeRunning) {
+          game.ui.btnToggleClock.textContent = '⏸ 一時停止 (時間を止める)';
+          game.ui.btnToggleClock.classList.add('running');
+        } else {
+          game.ui.btnToggleClock.textContent = '▶ 開店 (時間を進める)';
+          game.ui.btnToggleClock.classList.remove('running');
+        }
+      }
+      if (typeof game.updateOpenCloseSwitchVisuals === 'function') {
+        game.updateOpenCloseSwitchVisuals();
+      }
+
+      return true;
+    }
+
+    static save(game, isManual = false) {
+      if (!game || !game.store) return false;
+      try {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const dateStr = `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+        const snapshot = SaveManager.getSnapshot(game);
+        if (!snapshot) return false;
+
+        const saveData = {
+          version: 1,
+          dateStr: dateStr,
+          timestamp: Date.now(),
+          store: snapshot.store,
+          player: {
+            x: game.camera.position.x,
+            y: game.camera.position.y,
+            z: game.camera.position.z,
+            yaw: game.euler ? game.euler.y : 0,
+            holdingBox: game.holdingBox ? {
+              isFixtureBox: !!game.holdingBox.isFixtureBox,
+              fixtureId: game.holdingBox.fixture ? game.holdingBox.fixture.id : (game.holdingBox.placementFixture ? game.holdingBox.placementFixture.id : null),
+              itemId: game.holdingBox.item ? game.holdingBox.item.id : null,
+              count: game.holdingBox.count || 0,
+              itemName: game.holdingBox.itemName || ''
+            } : null
+          },
+          shelves: snapshot.shelves,
+          register: snapshot.register,
+          deliveryBoxes: snapshot.deliveryBoxes
+        };
+
+        localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(saveData));
+
+        if (isManual) {
+          soundManager.playSaveSound();
+          if (game.ui) {
+            game.ui.showToast(`💾 ゲームをセーブしました！ (Day ${game.store.dayNumber} / ¥${game.store.cash.toLocaleString()})`);
+          }
+        }
+        return true;
+      } catch (e) {
+        console.error('Failed to save game:', e);
+        if (isManual && game.ui) {
+          game.ui.showToast('⚠️ セーブに失敗しました。');
+        }
+        return false;
+      }
+    }
+
+    static load(game) {
+      if (!game || !game.store) return false;
+      try {
+        const str = localStorage.getItem(SAVE_STORAGE_KEY);
+        if (!str) return false;
+        const data = JSON.parse(str);
+        if (!data || !data.store) return false;
+
+        SaveManager.applySnapshot(game, data);
+
+        // プレイヤー位置＆所持箱の復元
+        if (data.player) {
+          game.camera.position.set(data.player.x, data.player.y || 1.65, data.player.z);
+          if (data.player.yaw !== undefined) {
+            game.euler.set(0, data.player.yaw, 0);
+            game.camera.quaternion.setFromEuler(game.euler);
+          }
+          if (data.player.holdingBox) {
+            const hb = data.player.holdingBox;
+            if (hb.isFixtureBox) {
+              const fixture = FIXTURE_CATALOG.find(f => f.id === hb.fixtureId);
+              if (fixture) {
+                game.holdingBox = { isFixtureBox: true, fixture, itemName: `[備品] ${fixture.name}` };
+              }
+            } else {
+              const item = ITEM_CATALOG.find(i => i.id === hb.itemId);
+              if (item) {
+                game.holdingBox = { isFixtureBox: false, item, count: hb.count, itemName: item.name };
+              }
+            }
+          } else {
+            game.holdingBox = null;
+          }
+        }
+
+        soundManager.playSaveSound();
+        if (game.ui) {
+          game.ui.showToast(`📂 セーブデータをロードしました！ (Day ${game.store.dayNumber})`);
+        }
+        return true;
+      } catch (e) {
+        console.error('Failed to load game:', e);
+        if (game.ui) {
+          game.ui.showToast('⚠️ セーブデータの読み込みに失敗しました。');
+        }
+        return false;
+      }
+    }
+
+    static deleteSave() {
+      try {
+        localStorage.removeItem(SAVE_STORAGE_KEY);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+  }
+
+  // ========================================================
+  // 7.5 オンライン2人協力プレイ (WebRTC P2P Multiplayer)
+  // ========================================================
+  class MultiplayerManager {
+    constructor(game) {
+      this.game = game;
+      this.peerPrefix = 'smsim2-';
+
+      this.isMultiplayer = false;
+      this.isHost = false;
+      this.roomCode = null;
+      this.peer = null;
+      this.conn = null;
+
+      this.remotePlayerMesh = null;
+      this.remoteBoxMesh = null;
+      this.remoteTransform = {
+        targetPos: new THREE.Vector3(0, 0, 0),
+        targetYaw: 0,
+        isMoving: false,
+        isHoldingBox: false,
+        holdingBoxName: ''
+      };
+
+      this.sendTimer = 0;
+      this.syncTimer = 0;
+
+      this.initUI();
+      this.checkUrlParams();
+    }
+
+    initUI() {
+      this.modal = document.getElementById('multiplayer-modal');
+      this.btnTitleMulti = document.getElementById('btn-title-multiplayer');
+      this.btnHudMulti = document.getElementById('btn-hud-multiplayer');
+      this.btnCloseModal = document.getElementById('btn-close-multi');
+      this.btnCloseModalX = document.getElementById('btn-close-multi-x');
+
+      this.hudStatusBadge = document.getElementById('hud-multi-status');
+      this.hudRoleText = document.getElementById('hud-multi-role');
+
+      this.activePanel = document.getElementById('multi-active-panel');
+      this.setupGrid = document.getElementById('multi-setup-grid');
+      this.activeRoomCodeEl = document.getElementById('active-room-code');
+      this.btnCopyActiveLink = document.getElementById('btn-copy-active-link');
+      this.btnDisconnect = document.getElementById('btn-disconnect-multi');
+
+      // Host elements
+      this.btnCreateRoom = document.getElementById('btn-create-room');
+      this.hostUnreadySec = document.getElementById('host-unready-section');
+      this.hostReadySec = document.getElementById('host-ready-section');
+      this.displayRoomCodeEl = document.getElementById('display-room-code');
+      this.btnCopyCode = document.getElementById('btn-copy-code');
+      this.btnCopyInviteUrl = document.getElementById('btn-copy-invite-url');
+      this.hostWaitStatusEl = document.getElementById('host-wait-status');
+
+      // Guest elements
+      this.inputRoomCode = document.getElementById('input-room-code');
+      this.btnJoinRoom = document.getElementById('btn-join-room');
+      this.joinStatusBox = document.getElementById('join-status-indicator');
+      this.joinStatusText = document.getElementById('join-status-text');
+
+      if (this.btnTitleMulti) {
+        this.btnTitleMulti.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openModal();
+        });
+      }
+
+      if (this.btnHudMulti) {
+        this.btnHudMulti.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openModal();
+        });
+      }
+
+      if (this.btnCloseModal) {
+        this.btnCloseModal.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.closeModal();
+        });
+      }
+
+      if (this.btnCloseModalX) {
+        this.btnCloseModalX.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.closeModal();
+        });
+      }
+
+      if (this.btnCreateRoom) {
+        this.btnCreateRoom.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.startHost();
+        });
+      }
+
+      if (this.btnCopyCode) {
+        this.btnCopyCode.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (this.roomCode) {
+            navigator.clipboard.writeText(this.roomCode);
+            this.btnCopyCode.textContent = '✅ コピー済';
+            setTimeout(() => { if (this.btnCopyCode) this.btnCopyCode.textContent = '📋 コピー'; }, 2000);
+          }
+        });
+      }
+
+      const copyInviteHandler = (btn) => {
+        if (!this.roomCode) return;
+        const url = `${window.location.origin}${window.location.pathname}?room=${this.roomCode}`;
+        navigator.clipboard.writeText(url);
+        const origText = btn.textContent;
+        btn.textContent = '✅ URLをコピーしました！';
+        setTimeout(() => { btn.textContent = origText; }, 2000);
+      };
+
+      if (this.btnCopyInviteUrl) {
+        this.btnCopyInviteUrl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          copyInviteHandler(this.btnCopyInviteUrl);
+        });
+      }
+
+      if (this.btnCopyActiveLink) {
+        this.btnCopyActiveLink.addEventListener('click', (e) => {
+          e.stopPropagation();
+          copyInviteHandler(this.btnCopyActiveLink);
+        });
+      }
+
+      if (this.btnJoinRoom) {
+        this.btnJoinRoom.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const code = (this.inputRoomCode.value || '').trim().toUpperCase();
+          if (!code) {
+            alert('部屋コードを入力してください。(例: CVN-1234)');
+            return;
+          }
+          this.startGuest(code);
+        });
+      }
+
+      if (this.btnDisconnect) {
+        this.btnDisconnect.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.disconnect();
+          this.closeModal();
+        });
+      }
+    }
+
+    checkUrlParams() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const room = params.get('room') || params.get('join');
+        if (room) {
+          const cleanCode = room.trim().toUpperCase();
+          if (this.inputRoomCode) {
+            this.inputRoomCode.value = cleanCode;
+          }
+          setTimeout(() => {
+            this.openModal();
+          }, 300);
+        }
+      } catch (e) {}
+    }
+
+    openModal() {
+      if (document.exitPointerLock) document.exitPointerLock();
+      if (!this.modal) return;
+      this.modal.classList.remove('hidden');
+
+      if (this.isMultiplayer) {
+        if (this.activePanel) this.activePanel.classList.remove('hidden');
+        if (this.setupGrid) this.setupGrid.classList.add('hidden');
+        if (this.activeRoomCodeEl) this.activeRoomCodeEl.textContent = this.roomCode;
+      } else {
+        if (this.activePanel) this.activePanel.classList.add('hidden');
+        if (this.setupGrid) this.setupGrid.classList.remove('hidden');
+      }
+    }
+
+    closeModal() {
+      if (!this.modal) return;
+      this.modal.classList.add('hidden');
+    }
+
+    generateRoomCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = 'CVN-';
+      for (let i = 0; i < 4; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    }
+
+    startHost() {
+      if (typeof Peer === 'undefined') {
+        alert('WebRTC通信ライブラリの読み込み中です。少々お待ちください。');
+        return;
+      }
+
+      this.disconnect();
+      this.roomCode = this.generateRoomCode();
+      this.isHost = true;
+
+      if (this.displayRoomCodeEl) this.displayRoomCodeEl.textContent = this.roomCode;
+      if (this.hostUnreadySec) this.hostUnreadySec.classList.add('hidden');
+      if (this.hostReadySec) this.hostReadySec.classList.remove('hidden');
+      if (this.hostWaitStatusEl) this.hostWaitStatusEl.textContent = '店員の参加を待機しています...';
+
+      try {
+        this.peer = new Peer(this.peerPrefix + this.roomCode, { debug: 1 });
+
+        this.peer.on('open', (id) => {
+          console.log('[Multiplayer] Host Peer opened:', id);
+        });
+
+        this.peer.on('connection', (conn) => {
+          console.log('[Multiplayer] Guest connected to Host');
+          this.conn = conn;
+          this.setupConnection();
+        });
+
+        this.peer.on('error', (err) => {
+          console.error('[Multiplayer] Peer error:', err);
+          if (err.type === 'unavailable-id') {
+            this.startHost();
+          } else {
+            if (this.hostWaitStatusEl) this.hostWaitStatusEl.textContent = '❌ 接続エラー: ' + err.type;
+          }
+        });
+      } catch (err) {
+        console.error('[Multiplayer] Failed to start host:', err);
+      }
+    }
+
+    startGuest(roomCode) {
+      if (typeof Peer === 'undefined') {
+        alert('WebRTC通信ライブラリの読み込み中です。少々お待ちください。');
+        return;
+      }
+
+      this.disconnect();
+      this.roomCode = roomCode;
+      this.isHost = false;
+
+      if (this.joinStatusBox) this.joinStatusBox.classList.remove('hidden');
+      if (this.joinStatusText) this.joinStatusText.textContent = `🔄 部屋『${roomCode}』に接続中...`;
+
+      try {
+        this.peer = new Peer({ debug: 1 });
+
+        this.peer.on('open', () => {
+          const targetPeerId = this.peerPrefix + this.roomCode;
+          console.log('[Multiplayer] Connecting to host:', targetPeerId);
+          this.conn = this.peer.connect(targetPeerId, { reliable: true });
+          this.setupConnection();
+        });
+
+        this.peer.on('error', (err) => {
+          console.error('[Multiplayer] Guest peer error:', err);
+          if (this.joinStatusText) this.joinStatusText.textContent = `❌ 接続エラー: 部屋コードを確認してください`;
+        });
+      } catch (err) {
+        console.error('[Multiplayer] Failed to start guest:', err);
+      }
+    }
+
+    setupConnection() {
+      if (!this.conn) return;
+
+      this.conn.on('open', () => {
+        console.log('[Multiplayer] DataChannel opened!');
+        this.isMultiplayer = true;
+
+        if (this.isHost) {
+          const snapshot = SaveManager.getSnapshot(this.game);
+          this.send({
+            type: 'INIT_WORLD',
+            snapshot: snapshot
+          });
+          if (this.hostWaitStatusEl) this.hostWaitStatusEl.textContent = '✅ 店員が店舗に入室しました！';
+          this.game.ui.showToast('🎉 店員 (ゲスト) が来店・接続しました！');
+          this.game.startGame();
+        } else {
+          if (this.joinStatusText) this.joinStatusText.textContent = '✅ 店舗データ同期中...';
+        }
+
+        this.createRemoteAvatar();
+        this.updateHUDStatus();
+        this.closeModal();
+      });
+
+      this.conn.on('data', (data) => {
+        this.handleData(data);
+      });
+
+      this.conn.on('close', () => {
+        console.log('[Multiplayer] Connection closed');
+        this.handleDisconnect();
+      });
+
+      this.conn.on('error', (err) => {
+        console.error('[Multiplayer] Connection error:', err);
+        this.handleDisconnect();
+      });
+    }
+
+    createRemoteAvatar() {
+      this.removeRemoteAvatar();
+
+      const badgeText = this.isHost ? '👔 店員 (ゲスト)' : '👑 店長 (ホスト)';
+      const outfitColor = this.isHost ? 0x27ae60 : 0x2980b9;
+
+      this.remotePlayerMesh = createHumanoidModel({
+        isEmployee: true,
+        outfitColor: outfitColor,
+        hairColor: 0x2c3e50,
+        badgeText: badgeText
+      });
+
+      const boxGeo = new THREE.BoxGeometry(0.48, 0.36, 0.38);
+      const boxMat = new THREE.MeshLambertMaterial({ color: 0xc89d6c });
+      this.remoteBoxMesh = new THREE.Mesh(boxGeo, boxMat);
+      this.remoteBoxMesh.position.set(0, 1.05, 0.35);
+      this.remoteBoxMesh.visible = false;
+      this.remotePlayerMesh.add(this.remoteBoxMesh);
+
+      this.remotePlayerMesh.position.set(0, 0, 4.0);
+      this.remoteTransform.targetPos.set(0, 0, 4.0);
+      this.game.scene.add(this.remotePlayerMesh);
+    }
+
+    removeRemoteAvatar() {
+      if (this.remotePlayerMesh) {
+        this.game.scene.remove(this.remotePlayerMesh);
+        this.remotePlayerMesh = null;
+        this.remoteBoxMesh = null;
+      }
+    }
+
+    updateHUDStatus() {
+      if (this.isMultiplayer) {
+        if (this.hudStatusBadge) this.hudStatusBadge.classList.remove('hidden');
+        if (this.hudRoleText) {
+          const role = this.isHost ? '👑 店長' : '👔 店員';
+          this.hudRoleText.textContent = `2人協力 [${this.roomCode}] (${role})`;
+        }
+      } else {
+        if (this.hudStatusBadge) this.hudStatusBadge.classList.add('hidden');
+      }
+    }
+
+    send(data) {
+      if (this.conn && this.conn.open) {
+        try {
+          this.conn.send(data);
+        } catch (e) {
+          console.error('[Multiplayer] Send error:', e);
+        }
+      }
+    }
+
+    handleData(data) {
+      if (!data || !data.type) return;
+
+      switch (data.type) {
+        case 'INIT_WORLD': {
+          if (!this.isHost && data.snapshot) {
+            SaveManager.applySnapshot(this.game, data.snapshot);
+            this.game.startGame();
+            this.game.ui.showToast(`🏪 店長 (ホスト) の店舗に参加しました！`);
+            this.send({ type: 'INIT_WORLD_ACK' });
+          }
+          break;
+        }
+
+        case 'INIT_WORLD_ACK': {
+          if (this.isHost) {
+            this.game.ui.showToast(`✅ 店員との店舗データ同期が完了しました！`);
+          }
+          break;
+        }
+
+        case 'PLAYER_TRANSFORM': {
+          this.remoteTransform.targetPos.set(data.x, 0, data.z);
+          this.remoteTransform.targetYaw = data.yaw || 0;
+          this.remoteTransform.isMoving = !!data.isMoving;
+          this.remoteTransform.isHoldingBox = !!data.isHoldingBox;
+          this.remoteTransform.holdingBoxName = data.holdingBoxName || '';
+          break;
+        }
+
+        case 'PLACE_FIXTURE': {
+          const pos = new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z);
+          if (data.fixtureType === 'register') {
+            this.game.store.setRegister(pos, data.rotY);
+          } else {
+            this.game.store.addShelf(data.fixtureType, pos, data.rotY);
+          }
+          soundManager.playPlaceItem();
+          this.game.ui.showToast(`パートナーが『${data.fixtureName}』を設置しました！`);
+          break;
+        }
+
+        case 'SHELF_ADD_ITEM': {
+          const shelf = this.game.store.shelves[data.shelfIndex];
+          if (shelf) {
+            const item = getItemById(data.itemId);
+            if (item) {
+              shelf.addItem(item, data.count);
+              soundManager.playPlaceItem();
+              this.game.ui.showToast(`パートナーが棚に『${item.name}』を補充しました！`);
+            }
+          }
+          break;
+        }
+
+        case 'PICK_UP_BOX': {
+          const targetPos = new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z);
+          let closestIdx = -1;
+          let minDist = 2.0;
+          this.game.store.deliveryBoxes.forEach((b, idx) => {
+            const d = b.mesh.position.distanceTo(targetPos);
+            if (d < minDist) {
+              minDist = d;
+              closestIdx = idx;
+            }
+          });
+          if (closestIdx !== -1) {
+            const removed = this.game.store.deliveryBoxes.splice(closestIdx, 1)[0];
+            this.game.scene.remove(removed.mesh);
+            soundManager.playBox();
+          }
+          break;
+        }
+
+        case 'DROP_BOX': {
+          const pos = new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z);
+          if (data.isFixtureBox) {
+            const fixture = FIXTURE_CATALOG.find(f => f.id === data.fixtureId);
+            if (fixture) {
+              const boxMesh = createDeliveryBoxMesh({ isFixture: true, fixture });
+              this.game.store.placeBoxInDeliveryZone(boxMesh, pos);
+              this.game.store.deliveryBoxes.push({
+                isFixtureBox: true,
+                fixture,
+                mesh: boxMesh,
+                itemName: `[備品] ${fixture.name}`
+              });
+            }
+          } else {
+            const item = getItemById(data.itemId);
+            if (item) {
+              const boxMesh = createDeliveryBoxMesh({ isFixture: false, item, count: data.count });
+              this.game.store.placeBoxInDeliveryZone(boxMesh, pos);
+              this.game.store.deliveryBoxes.push({
+                isFixtureBox: false,
+                item,
+                count: data.count,
+                mesh: boxMesh,
+                itemName: item.name
+              });
+            }
+          }
+          soundManager.playBox();
+          break;
+        }
+
+        case 'PURCHASE': {
+          this.game.store.cash = data.newCash;
+          if (data.newDailyCost !== undefined) this.game.store.dailyCost = data.newDailyCost;
+          if (data.isFixture) {
+            const fixture = FIXTURE_CATALOG.find(f => f.id === data.id);
+            if (fixture) {
+              this.game.store.spawnFixtureDeliveryBox(fixture);
+              this.game.ui.showToast(`パートナーが『${fixture.name}』を発注しました！`);
+            }
+          } else {
+            const item = getItemById(data.id);
+            if (item) {
+              this.game.store.spawnDeliveryBox(item, data.count);
+              this.game.ui.showToast(`パートナーが『${item.name}』を発注しました！`);
+            }
+          }
+          soundManager.playRegisterDing();
+          this.game.ui.update();
+          break;
+        }
+
+        case 'REGISTER_CHECKOUT': {
+          this.game.store.cash += data.revenue;
+          this.game.store.dailyRevenue += data.revenue;
+          this.game.store.dailyCustomersServed++;
+          soundManager.playRegisterDing();
+          this.game.ui.showToast(`パートナーがレジ会計を完了しました！ (+¥${data.revenue.toLocaleString()})`);
+          this.game.ui.update();
+          break;
+        }
+
+        case 'CLOCK_TOGGLE': {
+          if (data.isRunning) {
+            this.game.store.startDay();
+            if (this.game.ui.btnToggleClock) {
+              this.game.ui.btnToggleClock.textContent = '⏸ 一時停止 (時間を止める)';
+              this.game.ui.btnToggleClock.classList.add('running');
+            }
+          } else {
+            this.game.store.pauseDay();
+            if (this.game.ui.btnToggleClock) {
+              this.game.ui.btnToggleClock.textContent = '▶ 開店 (時間を進める)';
+              this.game.ui.btnToggleClock.classList.remove('running');
+            }
+          }
+          if (typeof this.game.updateOpenCloseSwitchVisuals === 'function') {
+            this.game.updateOpenCloseSwitchVisuals();
+          }
+          this.game.ui.update();
+          break;
+        }
+
+        case 'TIME_SYNC': {
+          if (!this.isHost) {
+            this.game.store.hour = data.hour;
+            this.game.store.minute = data.minute;
+            this.game.store.cash = data.cash;
+            this.game.ui.update();
+          }
+          break;
+        }
+      }
+    }
+
+    update(delta) {
+      if (!this.isMultiplayer || !this.conn || !this.conn.open) return;
+
+      // 1. プレイヤー位置・向き送信 (~20Hz)
+      this.sendTimer += delta;
+      if (this.sendTimer >= 0.05) {
+        this.sendTimer = 0;
+        const camPos = this.game.camera.position;
+        const isMoving = !!(this.game.keys['KeyW'] || this.game.keys['KeyS'] || this.game.keys['KeyA'] || this.game.keys['KeyD']);
+        this.send({
+          type: 'PLAYER_TRANSFORM',
+          x: camPos.x,
+          y: camPos.y,
+          z: camPos.z,
+          yaw: this.game.euler ? this.game.euler.y : 0,
+          isMoving: isMoving,
+          isHoldingBox: !!this.game.holdingBox,
+          holdingBoxName: this.game.holdingBox ? this.game.holdingBox.itemName : ''
+        });
+      }
+
+      // 2. ホストによる時間・所持金定期同期 (3秒ごと)
+      if (this.isHost) {
+        this.syncTimer += delta;
+        if (this.syncTimer >= 3.0) {
+          this.syncTimer = 0;
+          this.send({
+            type: 'TIME_SYNC',
+            hour: this.game.store.hour,
+            minute: this.game.store.minute,
+            cash: this.game.store.cash
+          });
+        }
+      }
+
+      // 3. リモートプレイヤーのアバター位置補間・歩行アニメーション
+      if (this.remotePlayerMesh) {
+        this.remotePlayerMesh.position.lerp(this.remoteTransform.targetPos, Math.min(delta * 12, 1));
+
+        let curYaw = this.remotePlayerMesh.rotation.y;
+        let diffYaw = this.remoteTransform.targetYaw - curYaw;
+        while (diffYaw < -Math.PI) diffYaw += Math.PI * 2;
+        while (diffYaw > Math.PI) diffYaw -= Math.PI * 2;
+        this.remotePlayerMesh.rotation.y += diffYaw * Math.min(delta * 12, 1);
+
+        if (this.remoteBoxMesh) {
+          this.remoteBoxMesh.visible = this.remoteTransform.isHoldingBox;
+        }
+
+        const uData = this.remotePlayerMesh.userData;
+        if (uData && uData.leftLeg && uData.rightLeg) {
+          if (this.remoteTransform.isMoving) {
+            uData.animTime = (uData.animTime || 0) + delta * 9;
+            const sinVal = Math.sin(uData.animTime) * 0.45;
+            uData.leftLeg.rotation.x = sinVal;
+            uData.rightLeg.rotation.x = -sinVal;
+            if (uData.leftArm && uData.rightArm) {
+              if (this.remoteTransform.isHoldingBox) {
+                uData.leftArm.rotation.x = -Math.PI / 4;
+                uData.rightArm.rotation.x = -Math.PI / 4;
+              } else {
+                uData.leftArm.rotation.x = -sinVal * 0.8;
+                uData.rightArm.rotation.x = sinVal * 0.8;
+              }
+            }
+          } else {
+            uData.leftLeg.rotation.x = 0;
+            uData.rightLeg.rotation.x = 0;
+            if (uData.leftArm && uData.rightArm) {
+              if (this.remoteTransform.isHoldingBox) {
+                uData.leftArm.rotation.x = -Math.PI / 4;
+                uData.rightArm.rotation.x = -Math.PI / 4;
+              } else {
+                uData.leftArm.rotation.x = 0;
+                uData.rightArm.rotation.x = 0;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    broadcastFixturePlacement(fixtureType, pos, rotY, fixtureName) {
+      this.send({
+        type: 'PLACE_FIXTURE',
+        fixtureType: fixtureType,
+        pos: { x: pos.x, y: pos.y, z: pos.z },
+        rotY: rotY,
+        fixtureName: fixtureName
+      });
+    }
+
+    broadcastShelfAddItem(shelfIndex, itemId, count) {
+      this.send({
+        type: 'SHELF_ADD_ITEM',
+        shelfIndex: shelfIndex,
+        itemId: itemId,
+        count: count
+      });
+    }
+
+    broadcastPickUpBox(pos) {
+      this.send({
+        type: 'PICK_UP_BOX',
+        pos: { x: pos.x, y: pos.y, z: pos.z }
+      });
+    }
+
+    broadcastDropBox(boxData, pos) {
+      this.send({
+        type: 'DROP_BOX',
+        isFixtureBox: !!boxData.isFixtureBox,
+        fixtureId: boxData.fixture ? boxData.fixture.id : null,
+        itemId: boxData.item ? boxData.item.id : null,
+        count: boxData.count || 0,
+        itemName: boxData.itemName || '',
+        pos: { x: pos.x, y: pos.y, z: pos.z }
+      });
+    }
+
+    broadcastPurchase(isFixture, id, count, newCash, newDailyCost) {
+      this.send({
+        type: 'PURCHASE',
+        isFixture: isFixture,
+        id: id,
+        count: count,
+        newCash: newCash,
+        newDailyCost: newDailyCost
+      });
+    }
+
+    broadcastCheckout(revenue) {
+      this.send({
+        type: 'REGISTER_CHECKOUT',
+        revenue: revenue
+      });
+    }
+
+    broadcastClockToggle(isRunning) {
+      this.send({
+        type: 'CLOCK_TOGGLE',
+        isRunning: isRunning
+      });
+    }
+
+    handleDisconnect() {
+      this.isMultiplayer = false;
+      this.removeRemoteAvatar();
+      this.updateHUDStatus();
+      if (this.conn) {
+        try { this.conn.close(); } catch (e) {}
+        this.conn = null;
+      }
+      this.game.ui.showToast('ℹ️ マルチプレイ通信が切断されました。ソロプレイを継続します。');
+    }
+
+    disconnect() {
+      this.isMultiplayer = false;
+      this.removeRemoteAvatar();
+      this.updateHUDStatus();
+      if (this.conn) {
+        try { this.conn.close(); } catch (e) {}
+        this.conn = null;
+      }
+      if (this.peer) {
+        try { this.peer.destroy(); } catch (e) {}
+        this.peer = null;
+      }
+      if (this.hostUnreadySec) this.hostUnreadySec.classList.remove('hidden');
+      if (this.hostReadySec) this.hostReadySec.classList.add('hidden');
+      if (this.joinStatusBox) this.joinStatusBox.classList.add('hidden');
     }
   }
 
@@ -3601,6 +4680,7 @@
       this.customerManager = new CustomerManager(this.scene);
       this.registerSystem = new RegisterSystem(this.store);
       this.ui = new UIManager(this.store, this);
+      this.multiplayer = new MultiplayerManager(this);
 
       this.wallColliders = [];
       this.setupFPSControls();
@@ -3620,6 +4700,12 @@
       this.planeIntersectPoint = new THREE.Vector3();
 
       this.clock = new THREE.Clock();
+      this.isGameActive = false;
+      this.titleAnimTime = 0;
+      this.autoSaveTimer = 0;
+
+      this.setupTitleScreen();
+
       this.animate = this.animate.bind(this);
       requestAnimationFrame(this.animate);
 
@@ -3630,16 +4716,203 @@
       });
     }
 
+    setupTitleScreen() {
+      this.updateTitleScreen();
+
+      const btnContinue = document.getElementById('btn-title-continue');
+      if (btnContinue) {
+        btnContinue.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (SaveManager.hasSave()) {
+            SaveManager.load(this);
+            this.startGame();
+          }
+        });
+      }
+
+      const btnNewGame = document.getElementById('btn-title-newgame');
+      if (btnNewGame) {
+        btnNewGame.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (SaveManager.hasSave()) {
+            if (!confirm('既存のセーブデータがあります。新しくゲームを始めますか？\n（現在のデータは上書きされます）')) {
+              return;
+            }
+          }
+          this.startNewGame();
+          this.startGame();
+          const tutModal = document.getElementById('tutorial-modal');
+          if (tutModal) tutModal.classList.remove('hidden');
+        });
+      }
+
+      const btnTutorial = document.getElementById('btn-title-tutorial');
+      if (btnTutorial) {
+        btnTutorial.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const tutModal = document.getElementById('tutorial-modal');
+          if (tutModal) tutModal.classList.remove('hidden');
+        });
+      }
+
+      const btnDelete = document.getElementById('btn-title-delete-save');
+      if (btnDelete) {
+        btnDelete.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm('保存されているセーブデータを完全に削除しますか？\n（この操作は取り消せません）')) {
+            SaveManager.deleteSave();
+            this.updateTitleScreen();
+            this.ui.showToast('🗑️ セーブデータを削除しました。');
+          }
+        });
+      }
+    }
+
+    updateTitleScreen() {
+      const saveCard = document.getElementById('title-save-card');
+      const btnContinue = document.getElementById('btn-title-continue');
+      const continueDesc = document.getElementById('title-continue-desc');
+      const btnDelete = document.getElementById('btn-title-delete-save');
+
+      const summary = SaveManager.getSaveSummary();
+      if (summary) {
+        if (saveCard) saveCard.classList.remove('hidden');
+        if (btnContinue) {
+          btnContinue.disabled = false;
+        }
+        if (continueDesc) {
+          continueDesc.textContent = `Day ${summary.dayNumber} (${String(summary.hour).padStart(2, '0')}:${String(summary.minute).padStart(2, '0')}) 所持金: ¥${summary.cash.toLocaleString()}`;
+        }
+        if (btnDelete) btnDelete.classList.remove('hidden');
+
+        const dateEl = document.getElementById('title-save-date');
+        if (dateEl) dateEl.textContent = summary.dateStr;
+        const dayEl = document.getElementById('title-save-day');
+        if (dayEl) dayEl.textContent = `Day ${summary.dayNumber}`;
+        const timeEl = document.getElementById('title-save-time');
+        if (timeEl) timeEl.textContent = `${String(summary.hour).padStart(2, '0')}:${String(summary.minute).padStart(2, '0')}`;
+        const cashEl = document.getElementById('title-save-cash');
+        if (cashEl) cashEl.textContent = `¥${summary.cash.toLocaleString()}`;
+        const fixEl = document.getElementById('title-save-fixtures');
+        if (fixEl) fixEl.textContent = `棚 ${summary.shelvesCount}台 / ${summary.hasRegister ? 'レジ設置済' : 'レジ未設置'}`;
+      } else {
+        if (saveCard) saveCard.classList.add('hidden');
+        if (btnContinue) {
+          btnContinue.disabled = true;
+        }
+        if (continueDesc) {
+          continueDesc.textContent = '（セーブデータがありません）';
+        }
+        if (btnDelete) btnDelete.classList.add('hidden');
+      }
+    }
+
+    startGame() {
+      this.isGameActive = true;
+      const titleScreen = document.getElementById('title-screen');
+      if (titleScreen) {
+        titleScreen.classList.add('hidden');
+      }
+    }
+
+    startNewGame() {
+      this.store.shelves.forEach(s => this.store.scene.remove(s.mesh));
+      this.store.shelves = [];
+
+      if (this.store.register) {
+        this.store.scene.remove(this.store.register.mesh);
+        this.store.register = null;
+      }
+
+      this.store.deliveryBoxes.forEach(b => this.store.scene.remove(b.mesh));
+      this.store.deliveryBoxes = [];
+
+      if (this.customerManager) {
+        this.customerManager.customers.forEach(c => this.customerManager.scene.remove(c.mesh));
+        this.customerManager.customers = [];
+        this.customerManager.employees.forEach(e => this.customerManager.scene.remove(e.mesh));
+        this.customerManager.employees = [];
+      }
+
+      this.store.cash = 60000;
+      this.store.dayNumber = 1;
+      this.store.hour = 8;
+      this.store.minute = 0;
+      this.store.dailyRevenue = 0;
+      this.store.dailyCost = 0;
+      this.store.dailyCustomersServed = 0;
+      this.store.isTimeRunning = false;
+      this.store.dayEndedFired = false;
+      this.store.hiredEmployees = [];
+
+      this.camera.position.set(0, 1.65, 4);
+      this.euler.set(0, 0, 0);
+      this.camera.quaternion.setFromEuler(this.euler);
+      this.holdingBox = null;
+      this.cancelPlacement(false);
+
+      const btnHire = document.getElementById('btn-hire-tanaka');
+      if (btnHire) {
+        btnHire.disabled = false;
+        btnHire.textContent = '雇用する';
+      }
+
+      this.ui.update();
+      if (this.ui.btnToggleClock) {
+        this.ui.btnToggleClock.textContent = '▶ 開店 (時間を進める)';
+        this.ui.btnToggleClock.classList.remove('running');
+      }
+      if (typeof this.updateOpenCloseSwitchVisuals === 'function') {
+        this.updateOpenCloseSwitchVisuals();
+      }
+
+      SaveManager.save(this, false);
+    }
+
+    returnToTitle() {
+      if (this.isGameActive) {
+        SaveManager.save(this, false);
+      }
+      this.isGameActive = false;
+      if (document.exitPointerLock) document.exitPointerLock();
+
+      this.store.pauseDay();
+      if (this.ui.btnToggleClock) {
+        this.ui.btnToggleClock.textContent = '▶ 開店 (時間を進める)';
+        this.ui.btnToggleClock.classList.remove('running');
+      }
+      if (typeof this.updateOpenCloseSwitchVisuals === 'function') {
+        this.updateOpenCloseSwitchVisuals();
+      }
+
+      ['register-modal', 'management-modal', 'tutorial-modal', 'day-end-modal', 'multiplayer-modal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+
+      const titleScreen = document.getElementById('title-screen');
+      if (titleScreen) {
+        titleScreen.classList.remove('hidden');
+      }
+      this.updateTitleScreen();
+    }
+
     isAnyModalOpen() {
+      if (!this.isGameActive) return true;
+      const titleScreen = document.getElementById('title-screen');
+      if (titleScreen && !titleScreen.classList.contains('hidden')) return true;
+
       const regModal = document.getElementById('register-modal');
       const pcModal = document.getElementById('management-modal');
       const tutModal = document.getElementById('tutorial-modal');
       const endModal = document.getElementById('day-end-modal');
+      const multiModal = document.getElementById('multiplayer-modal');
 
       return (regModal && !regModal.classList.contains('hidden')) ||
              (pcModal && !pcModal.classList.contains('hidden')) ||
              (tutModal && !tutModal.classList.contains('hidden')) ||
-             (endModal && !endModal.classList.contains('hidden'));
+             (endModal && !endModal.classList.contains('hidden')) ||
+             (multiModal && !multiModal.classList.contains('hidden'));
     }
 
     setupFPSControls() {
@@ -4777,11 +6050,15 @@
       }
 
       soundManager.playPlaceItem();
+      if (this.multiplayer) {
+        this.multiplayer.broadcastFixturePlacement(this.placementFixture.shelfType, pos, rotY, fixtureName);
+      }
       this.holdingBox = null;
       this.placementSourceBox = null;
       this.cancelPlacement(false);
 
       this.ui.showToast(`『${fixtureName}』を開封・設置しました！`);
+      SaveManager.save(this, false);
     }
 
     cancelPlacement(dropBox = true) {
@@ -4834,8 +6111,13 @@
           this.ui.showToast('すでに箱を持っています。先に棚に陳列するか床に置いてください。');
           return;
         }
+        const boxPos = hitObj.position.clone();
         const boxData = this.store.pickUpBox(hitObj);
         if (!boxData) return;
+
+        if (this.multiplayer) {
+          this.multiplayer.broadcastPickUpBox(boxPos);
+        }
 
         this.holdingBox = boxData;
 
@@ -4863,6 +6145,10 @@
 
           const added = shelf.addItem(item, this.holdingBox.count);
           if (added > 0) {
+            if (this.multiplayer) {
+              const shelfIdx = this.store.shelves.indexOf(shelf);
+              this.multiplayer.broadcastShelfAddItem(shelfIdx, item.id, added);
+            }
             this.holdingBox.count -= added;
             if (this.holdingBox.count <= 0) {
               this.holdingBox = null;
@@ -4921,6 +6207,10 @@
         });
       }
 
+      if (this.multiplayer) {
+        this.multiplayer.broadcastDropBox(this.holdingBox, dropPos);
+      }
+
       this.holdingBox = null;
       if (this.placementMode) {
         if (this.ghostMesh) {
@@ -4933,6 +6223,7 @@
 
       soundManager.playBox();
       this.ui.showPrompt('');
+      SaveManager.save(this, false);
     }
 
     updateCrosshairPrompt() {
@@ -4997,9 +6288,30 @@
       requestAnimationFrame(this.animate);
       const delta = Math.min(this.clock.getDelta(), 0.1);
 
+      if (!this.isGameActive) {
+        // タイトル画面表示中: 店舗前でのパノラマ演出
+        this.titleAnimTime = (this.titleAnimTime || 0) + delta * 0.25;
+        const camX = Math.sin(this.titleAnimTime) * 1.8;
+        const camZ = 9.5 + Math.cos(this.titleAnimTime) * 0.6;
+        this.camera.position.set(camX, 2.0, camZ);
+        this.camera.lookAt(0, 1.5, 0);
+        this.renderer.render(this.scene, this.camera);
+        return;
+      }
+
+      this.autoSaveTimer = (this.autoSaveTimer || 0) + delta;
+      if (this.autoSaveTimer >= 60) {
+        this.autoSaveTimer = 0;
+        SaveManager.save(this, false);
+      }
+
       this.updatePlayerMovement(delta);
       this.store.update(delta);
       this.customerManager.update(delta, this.store);
+
+      if (this.multiplayer) {
+        this.multiplayer.update(delta);
+      }
 
       if (this.placementMode) {
         this.updatePlacementGhost();

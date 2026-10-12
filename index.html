@@ -9,6 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- PeerJS WebRTC P2P Library for 2-Player Online Multiplayer (Zero-Cost Backendless) -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
   <!-- 3Dレンダリング用キャンバスコンテナ -->
@@ -41,9 +43,16 @@
     </div>
 
     <div class="hud-controls">
+      <div id="hud-multi-status" class="hud-multi-badge hidden" title="マルチプレイ通信状態">
+        <span class="multi-dot"></span>
+        <span id="hud-multi-role">ソロプレイ</span>
+      </div>
+      <button id="btn-hud-multiplayer" class="hud-btn multi-btn" title="オンライン協力プレイ設定">🌐 マルチ</button>
       <button id="btn-toggle-clock" class="hud-btn clock-btn">▶ 開店 (時間を進める)</button>
       <button id="btn-open-pc" class="hud-btn pc-btn">💻 発注PC [TAB]</button>
+      <button id="btn-hud-save" class="hud-btn save-btn" title="進行状況を保存">💾 セーブ</button>
       <button id="btn-show-tutorial" class="hud-btn help-btn">❓ ヘルプ</button>
+      <button id="btn-hud-title" class="hud-btn title-btn" title="セーブしてタイトル画面へ">🏠 タイトル</button>
     </div>
   </div>
 
@@ -56,6 +65,7 @@
     <span><kbd>TAB</kbd> 発注・管理PC</span>
     <span><kbd>O</kbd> 開店/閉店</span>
     <span><kbd>R</kbd> 棚・レジを回転</span>
+    <span><kbd>💾 セーブ</kbd> 自動＆手動セーブ対応</span>
   </div>
 
   <!-- ======================================================== -->
@@ -160,6 +170,7 @@
           <span class="pc-app-subtitle">－ [店舗発注・在庫ロジスティクス管理端末]</span>
         </div>
         <div class="pc-window-controls">
+          <button id="btn-pc-save" class="win-btn win-save" title="業務データを即時セーブ">💾 セーブ</button>
           <button class="win-btn win-min" title="最小化" tabindex="-1">_</button>
           <button class="win-btn win-max" title="最大化" tabindex="-1">🗖</button>
           <button id="btn-close-pc" class="win-btn win-close" title="閉じる (Esc / Tab)">✕ 閉じる</button>
@@ -243,9 +254,92 @@
   </div>
 
   <!-- ======================================================== -->
+  <!-- 0. タイトル・スタート画面 [スタート画面 & セーブ] -->
+  <!-- ======================================================== -->
+  <div id="title-screen" class="modal-overlay title-screen-overlay">
+    <div class="title-card">
+      <div class="title-header">
+        <div class="title-logo-icon">🏪</div>
+        <div class="title-headings">
+          <h1 class="title-main-text">スーパーマーケット<br>シミュレーター <span class="title-highlight">3D</span></h1>
+          <p class="title-en-text">SUPERMARKET SIMULATOR 3D</p>
+        </div>
+      </div>
+      <p class="title-catchphrase">〜 自分だけのスーパー・コンビニを作って繁盛させよう！ 〜</p>
+
+      <!-- セーブデータステータスカード (データ存在時に内容更新) -->
+      <div id="title-save-card" class="title-save-card hidden">
+        <div class="save-card-top">
+          <span class="save-badge"><span class="save-dot"></span> 💾 セーブデータ</span>
+          <span class="save-timestamp" id="title-save-date">2026/10/11 15:30</span>
+        </div>
+        <div class="save-card-body">
+          <div class="save-info-item">
+            <span class="save-info-label">営業日数</span>
+            <span class="save-info-val" id="title-save-day">Day 1</span>
+          </div>
+          <div class="save-info-item">
+            <span class="save-info-label">時間帯</span>
+            <span class="save-info-val" id="title-save-time">08:00</span>
+          </div>
+          <div class="save-info-item">
+            <span class="save-info-label">所持金</span>
+            <span class="save-info-val cash" id="title-save-cash">¥60,000</span>
+          </div>
+          <div class="save-info-item">
+            <span class="save-info-label">店内設備</span>
+            <span class="save-info-val" id="title-save-fixtures">棚 0台 / レジなし</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- メイン操作ボタン群 -->
+      <div class="title-actions">
+        <button id="btn-title-continue" class="btn-title-action btn-title-continue" disabled>
+          <span class="action-icon">▶</span>
+          <div class="action-label-box">
+            <span class="action-title">つづきから再開</span>
+            <span class="action-subtitle" id="title-continue-desc">（セーブデータがありません）</span>
+          </div>
+        </button>
+
+        <button id="btn-title-newgame" class="btn-title-action btn-title-new">
+          <span class="action-icon">🚀</span>
+          <div class="action-label-box">
+            <span class="action-title">はじめから開店</span>
+            <span class="action-subtitle">初期資金 ¥60,000 から新規スタート</span>
+          </div>
+        </button>
+
+        <button id="btn-title-multiplayer" class="btn-title-action btn-title-multi">
+          <span class="action-icon">🌐</span>
+          <div class="action-label-box">
+            <span class="action-title">オンライン2人協力プレイ</span>
+            <span class="action-subtitle">友達とリアルタイムで同じ店舗を共同経営</span>
+          </div>
+        </button>
+
+        <button id="btn-title-tutorial" class="btn-title-action btn-title-guide">
+          <span class="action-icon">📖</span>
+          <div class="action-label-box">
+            <span class="action-title">あそびかた・操作説明</span>
+            <span class="action-subtitle">開店準備・陳列・レジ接客の流れを確認</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- 下部補助リンク -->
+      <div class="title-sublinks">
+        <button id="btn-title-delete-save" class="btn-delete-save hidden">🗑️ セーブデータを削除</button>
+        <span class="title-version-tag">Ver 1.2.0 • Auto-Save Supported • WebGL 3D</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
   <!-- 3. 開始時チュートリアルモーダル -->
   <!-- ======================================================== -->
-  <div id="tutorial-modal" class="modal-overlay">
+  <div id="tutorial-modal" class="modal-overlay hidden">
     <div class="tutorial-card">
       <div class="tutorial-header">
         <h2>🏪 スーパーマーケット開店チュートリアル</h2>
@@ -325,6 +419,106 @@
       </div>
       <div class="report-footer">
         <button id="btn-next-day" class="btn-start-game">☀️ 次の日へ (Day 2 開店準備)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 5. オンライン協力マルチプレイ モーダル -->
+  <!-- ======================================================== -->
+  <div id="multiplayer-modal" class="modal-overlay hidden">
+    <div class="multi-card">
+      <div class="multi-header">
+        <div class="multi-header-title">
+          <h2>🌐 オンライン2人協力プレイ</h2>
+          <span class="multi-header-sub">サーバー登録不要・WebRTC P2P 高速直接通信</span>
+        </div>
+        <button id="btn-close-multi-x" class="btn-close-modal-x" title="閉じる">✕</button>
+      </div>
+
+      <div class="multi-body">
+        <p class="multi-intro-text">
+          友達と一緒に1つのスーパーマーケットをリアルタイムに共同経営！<br>
+          <b>商品の荷受・品出し陳列・レジ打ち・備品配置・発注</b>を完全リアルタイム同期！
+        </p>
+
+        <!-- マルチプレイ状態表示 (接続中時) -->
+        <div id="multi-active-panel" class="multi-active-panel hidden">
+          <div class="multi-connected-badge">
+            <span class="multi-pulse-dot"></span>
+            <span id="multi-connected-text">接続中: 2名で店舗を経営中</span>
+          </div>
+          <div class="multi-room-share-box">
+            <span class="room-label">現在の部屋コード:</span>
+            <span class="room-code-tag" id="active-room-code">CVN-0000</span>
+            <button id="btn-copy-active-link" class="btn-multi-copy">📋 招待リンクをコピー</button>
+          </div>
+          <button id="btn-disconnect-multi" class="btn-multi-disconnect">🔌 マルチプレイを切断 (ソロに戻る)</button>
+        </div>
+
+        <!-- 接続前: ホスト / ゲスト 選択グリッド -->
+        <div id="multi-setup-grid" class="multi-setup-grid">
+          <!-- ホスト側 (部屋を作る / 店長) -->
+          <div class="multi-box host-box">
+            <div class="box-badge host-badge">👑 ホスト (店長)</div>
+            <h3>部屋を作って友達を招待</h3>
+            <p>現在の店舗データで部屋を開設し、友達を店員として招待します。</p>
+
+            <div id="host-unready-section">
+              <button id="btn-create-room" class="btn-multi-action btn-host-start">
+                <span class="action-icon">🚀</span> 部屋を作成する
+              </button>
+            </div>
+
+            <div id="host-ready-section" class="host-ready-section hidden">
+              <div class="room-code-display">
+                <span class="code-label">部屋コード (ROOM CODE)</span>
+                <div class="code-row">
+                  <span class="code-val" id="display-room-code">CVN-0000</span>
+                  <button id="btn-copy-code" class="btn-mini-copy" title="コードをコピー">📋 コピー</button>
+                </div>
+              </div>
+
+              <div class="invite-url-row">
+                <button id="btn-copy-invite-url" class="btn-multi-action btn-copy-url">
+                  🔗 1クリック招待リンクをコピー
+                </button>
+              </div>
+
+              <div class="host-status-indicator">
+                <span class="status-spinner"></span>
+                <span id="host-wait-status">店員の参加を待機しています...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ゲスト側 (部屋に参加する / 店員) -->
+          <div class="multi-box join-box">
+            <div class="box-badge join-badge">👔 ゲスト (店員)</div>
+            <h3>友達の部屋に参加</h3>
+            <p>店長の部屋コードを入力して、店舗の開店・品出し・接客をお手伝いします。</p>
+
+            <div class="join-input-group">
+              <input type="text" id="input-room-code" placeholder="例: CVN-1234" maxlength="12" autocomplete="off" spellcheck="false">
+              <button id="btn-join-room" class="btn-multi-action btn-join-start">
+                参加する
+              </button>
+            </div>
+
+            <div id="join-status-indicator" class="join-status-box hidden">
+              <span id="join-status-text">🔄 部屋に接続中...</span>
+            </div>
+
+            <div class="multi-tip-box">
+              💡 招待リンクからアクセスした場合は、部屋コードが自動入力されます。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="multi-footer">
+        <span class="multi-infra-note">🔒 WebRTC P2P Direct Connect (完全無料・通信費0円・遅延ほぼゼロ)</span>
+        <button id="btn-close-multi" class="btn-secondary">閉じる</button>
       </div>
     </div>
   </div>
