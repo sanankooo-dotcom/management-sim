@@ -26,7 +26,9 @@
     SNACK: 'お菓子',
     DRINK: 'ドリンク',
     SHELF: '棚',
-    REGISTER: 'レジ'
+    COOLER: '冷蔵庫',
+    REGISTER: 'レジ',
+    TRASH_BIN: 'ゴミ箱'
   };
 
   const ITEM_CATALOG = [
@@ -375,6 +377,17 @@
       description: '米飯やお弁当、パンなど要冷蔵デイリー商品を陳列する冷蔵ショーケース'
     },
     {
+      id: 'shelf_drink_cooler',
+      name: 'ドリンク専用冷蔵庫(飲料専用)',
+      category: CATEGORIES.EQUIPMENT,
+      subCategory: SUBCATEGORIES.COOLER,
+      cost: 16000,
+      price: 16000,
+      shelfType: 'drink_cooler',
+      capacity: 18,
+      description: '透明ガラス扉と爽やかな冷光LEDを備えた、冷たい缶・ペットボトル飲料専用の大型リーチイン冷蔵ショーケース'
+    },
+    {
       id: 'fixture_register',
       name: 'レジカウンター',
       category: CATEGORIES.EQUIPMENT,
@@ -384,11 +397,124 @@
       shelfType: 'register',
       capacity: 0,
       description: 'お客様の会計を行うPOSレジスター＆カウンターデスク'
+    },
+    {
+      id: 'fixture_trash_bin',
+      name: 'ゴミ箱(空き箱専用)',
+      category: CATEGORIES.EQUIPMENT,
+      subCategory: SUBCATEGORIES.TRASH_BIN,
+      cost: 3000,
+      price: 3000,
+      shelfType: 'trash_bin',
+      capacity: 0,
+      description: '不要になった空のダンボール箱を投入して廃棄・消去できる業務用ダストボックス'
     }
   ];
 
+  const LICENSE_CATALOG = [
+    {
+      id: 'license_snack',
+      name: 'お菓子販売ライセンス',
+      subCategory: SUBCATEGORIES.SNACK,
+      category: CATEGORIES.NON_DAILY,
+      cost: 4000,
+      icon: '🍫',
+      badgeClass: 'nondaily-badge',
+      requiredShelf: '商品棚(非デイリー専用)',
+      itemCount: 6,
+      itemsSummary: 'ポテトチップス(うすしお/コンソメ), えびせん, チョコレート, クッキー, 芋けんぴ',
+      description: '国産スナック菓子や板チョコ、クッキーなどの常温菓子を取り扱う基本ライセンス。手頃な仕入れ値で利益を出しやすく、学生や子供に人気です。'
+    },
+    {
+      id: 'license_drink',
+      name: 'ドリンク販売ライセンス',
+      subCategory: SUBCATEGORIES.DRINK,
+      category: CATEGORIES.NON_DAILY,
+      cost: 6000,
+      icon: '🥤',
+      badgeClass: 'nondaily-badge',
+      requiredShelf: '商品棚(非デイリー専用) または ドリンク専用冷蔵庫',
+      itemCount: 6,
+      itemsSummary: '天然水, 強炭酸コーラ, 爽やかサイダー, 本格緑茶, ミネラル麦茶, ストレート紅茶',
+      description: 'ミネラルウォーターやお茶、炭酸飲料など冷涼・常温ドリンクを取り扱うライセンス。「ドリンク専用冷蔵庫」と組み合わせることで店舗の看板エリアに成長します。'
+    },
+    {
+      id: 'license_bread',
+      name: 'パン・ベーカリー販売ライセンス',
+      subCategory: SUBCATEGORIES.BREAD,
+      category: CATEGORIES.DAILY,
+      cost: 8000,
+      icon: '🍞',
+      badgeClass: 'daily-badge',
+      requiredShelf: '冷蔵棚(デイリー専用)',
+      itemCount: 6,
+      itemsSummary: 'コッペパン(あんこ/ピーナッツ), アンパン, ホットドッグ, サンドイッチ(たまご/ハムレタス)',
+      description: 'ふんわりコッペパンや定番アンパン、朝食・昼食に欠かせないフレッシュサンドイッチを取り扱うデイリーライセンス。通勤・通学ラッシュで高い需要を誇ります。'
+    },
+    {
+      id: 'license_rice',
+      name: '米飯・特製弁当販売ライセンス',
+      subCategory: SUBCATEGORIES.RICE,
+      category: CATEGORIES.DAILY,
+      cost: 12000,
+      icon: '🍙',
+      badgeClass: 'daily-badge',
+      requiredShelf: '冷蔵棚(デイリー専用)',
+      itemCount: 6,
+      itemsSummary: 'おにぎり(ツナマヨ/しゃけ/昆布), 特製幕の内弁当, 銀鮭塩焼き弁当, ボリュームのり弁',
+      description: '売上単価が高く利益率の高い定番おにぎり3種と特製弁当3種を取り扱う上級デイリーライセンス。昼ラッシュ（11〜13時）の爆発的な売上を牽引します。'
+    }
+  ];
+
+  function getLicenseById(id) {
+    return LICENSE_CATALOG.find(l => l.id === id);
+  }
+
+  function getLicenseBySubCategory(subCategory) {
+    return LICENSE_CATALOG.find(l => l.subCategory === subCategory);
+  }
+
   function getItemById(id) {
     return ITEM_CATALOG.find(i => i.id === id) || FIXTURE_CATALOG.find(f => f.id === id);
+  }
+
+  function getItemIcon(item) {
+    if (!item) return '📦';
+    if (item.modelType === 'onigiri') return '🍙';
+    if (item.modelType === 'bento') return '🍱';
+    if (item.modelType === 'bottle') {
+      if (item.id === 'drink_water') return '💧';
+      if (item.id === 'drink_greentea' || item.id === 'drink_barleytea') return '🍵';
+      if (item.id === 'drink_cola') return '🥤';
+      if (item.id === 'drink_cider') return '🫧';
+      return '🧃';
+    }
+    if (item.modelType === 'chipbag') {
+      if (item.id === 'snack_imokenpi') return '🍠';
+      if (item.id === 'snack_ebisen') return '🦐';
+      return '🍟';
+    }
+    if (item.modelType === 'chocolate') return '🍫';
+    if (item.modelType === 'cookiebox') return '🍪';
+    if (item.modelType === 'anpan') return '🥯';
+    if (item.modelType === 'koppepan') return '🥖';
+    if (item.id && item.id.includes('sandwich')) return '🥪';
+    if (item.id && item.id.includes('hotdog')) return '🌭';
+    if (item.subCategory === SUBCATEGORIES.BREAD) return '🍞';
+    if (item.subCategory === SUBCATEGORIES.RICE) return '🍙';
+    if (item.subCategory === SUBCATEGORIES.SNACK) return '🍪';
+    if (item.subCategory === SUBCATEGORIES.DRINK) return '🥤';
+    return '📦';
+  }
+
+  function getFixtureIcon(fixture) {
+    if (!fixture) return '🛠️';
+    if (fixture.shelfType === 'ambient') return '🗄️';
+    if (fixture.shelfType === 'chilled') return '❄️';
+    if (fixture.shelfType === 'drink_cooler') return '🧊';
+    if (fixture.shelfType === 'register') return '🖥️';
+    if (fixture.shelfType === 'trash_bin') return '🗑️';
+    return '🛠️';
   }
 
   // ========================================================
@@ -524,6 +650,108 @@
       gain.connect(this.ctx.destination);
       osc.start();
       osc.stop(this.ctx.currentTime + 0.12);
+    }
+
+    playBoxOpen() {
+      this.init();
+      if (!this.ctx) return;
+      // 1. テープ剥がし／ダンボール摩擦音 (バンドパスノイズ)
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.16);
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) output[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1800, this.ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(3200, this.ctx.currentTime + 0.16);
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.14, this.ctx.currentTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.16);
+      noise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(this.ctx.destination);
+      noise.start();
+
+      // 2. パカッというフラップ開放音 (三角波の上昇)
+      const osc = this.ctx.createOscillator();
+      const oscGain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(180, this.ctx.currentTime + 0.04);
+      osc.frequency.exponentialRampToValueAtTime(360, this.ctx.currentTime + 0.18);
+      oscGain.gain.setValueAtTime(0.16, this.ctx.currentTime + 0.04);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+      osc.connect(oscGain);
+      oscGain.connect(this.ctx.destination);
+      osc.start(this.ctx.currentTime + 0.04);
+      osc.stop(this.ctx.currentTime + 0.18);
+    }
+
+    playBoxClose() {
+      this.init();
+      if (!this.ctx) return;
+      // パタンとフタが合わさる音 (低域ノイズ＋ピッチダウン)
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(280, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.10);
+      gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.10);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.10);
+    }
+
+    playTrash() {
+      this.init();
+      if (!this.ctx) return;
+      // 1. ダンボールを押し込む・擦れるノイズ音
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.22);
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) output[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(900, this.ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(350, this.ctx.currentTime + 0.22);
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.22);
+      noise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(this.ctx.destination);
+      noise.start();
+
+      // 2. ゴミ箱の低音インパクト (ボフッ)
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(45, this.ctx.currentTime + 0.20);
+      gain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.20);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.20);
+
+      // 3. スイング扉の戻り音 (カタン)
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(420, this.ctx.currentTime + 0.08);
+      osc2.frequency.exponentialRampToValueAtTime(160, this.ctx.currentTime + 0.22);
+      gain2.gain.setValueAtTime(0.12, this.ctx.currentTime + 0.08);
+      gain2.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.22);
+      osc2.connect(gain2);
+      gain2.connect(this.ctx.destination);
+      osc2.start(this.ctx.currentTime + 0.08);
+      osc2.stop(this.ctx.currentTime + 0.22);
     }
 
     playCoin() {
@@ -1788,6 +2016,125 @@
     return group;
   }
 
+  // 2.5 ドリンク専用冷蔵庫(飲料専用) - ガラス扉＆クールLED付き大型リーチインショーケース
+  function createDrinkCoolerModel() {
+    const group = new THREE.Group();
+    group.name = 'shelf_drink_cooler';
+
+    const cabinetMat = new THREE.MeshLambertMaterial({ color: 0x1f2427 });
+    const innerMat = new THREE.MeshLambertMaterial({ color: 0xebedef });
+    const shelfMat = new THREE.MeshLambertMaterial({ color: 0xbdc3c7 });
+    const frameMat = new THREE.MeshLambertMaterial({ color: 0x2c3e50 });
+    const handleMat = new THREE.MeshLambertMaterial({ color: 0xe5e8e8, roughness: 0.2 });
+
+    // 1. 下部ベース (機械室・吸気グリル)
+    const baseGeo = new THREE.BoxGeometry(1.8, 0.26, 0.82);
+    const base = new THREE.Mesh(baseGeo, cabinetMat);
+    base.position.set(0, 0.13, 0);
+    group.add(base);
+
+    const grilleGeo = new THREE.BoxGeometry(1.68, 0.12, 0.02);
+    const grilleMat = new THREE.MeshLambertMaterial({ color: 0x111618 });
+    const grille = new THREE.Mesh(grilleGeo, grilleMat);
+    grille.position.set(0, 0.13, 0.415);
+    group.add(grille);
+
+    // 2. 背面パネル
+    const backGeo = new THREE.BoxGeometry(1.8, 1.8, 0.06);
+    const back = new THREE.Mesh(backGeo, innerMat);
+    back.position.set(0, 1.16, -0.37);
+    group.add(back);
+
+    // 3. 左右側面パネル
+    const sideGeo = new THREE.BoxGeometry(0.06, 1.8, 0.8);
+    const leftSide = new THREE.Mesh(sideGeo, cabinetMat);
+    leftSide.position.set(-0.87, 1.16, 0);
+    const rightSide = new THREE.Mesh(sideGeo, cabinetMat);
+    rightSide.position.set(0.87, 1.16, 0);
+    group.add(leftSide, rightSide);
+
+    // 4. 天面トップカバー
+    const topGeo = new THREE.BoxGeometry(1.8, 0.14, 0.82);
+    const top = new THREE.Mesh(topGeo, cabinetMat);
+    top.position.set(0, 2.13, 0);
+    group.add(top);
+
+    // 5. 3段の棚板 (ボトル用ワイヤーシェルフ)
+    const shelfYLevels = [0.46, 0.96, 1.46];
+    const shelfGeo = new THREE.BoxGeometry(1.68, 0.03, 0.68);
+
+    shelfYLevels.forEach(y => {
+      const shelf = new THREE.Mesh(shelfGeo, shelfMat);
+      shelf.position.set(0, y, 0.02);
+      group.add(shelf);
+
+      const railGeo = new THREE.BoxGeometry(1.68, 0.03, 0.02);
+      const rail = new THREE.Mesh(railGeo, frameMat);
+      rail.position.set(0, y + 0.02, 0.35);
+      group.add(rail);
+    });
+
+    // 6. 前面透明ガラス扉 (2枚ドアのリーチイン)
+    const doorWidth = 0.81;
+    const doorHeight = 1.68;
+    const glassMat = new THREE.MeshLambertMaterial({
+      color: 0xcbeef3,
+      transparent: true,
+      opacity: 0.30,
+      roughness: 0.1
+    });
+
+    [-0.42, 0.42].forEach(x => {
+      const glassGeo = new THREE.BoxGeometry(doorWidth - 0.04, doorHeight - 0.04, 0.015);
+      const glass = new THREE.Mesh(glassGeo, glassMat);
+      glass.position.set(x, 1.14, 0.39);
+      group.add(glass);
+
+      const frameOuterGeo = new THREE.BoxGeometry(doorWidth, 0.04, 0.03);
+      const frameTop = new THREE.Mesh(frameOuterGeo, frameMat);
+      frameTop.position.set(x, 1.14 + doorHeight / 2 - 0.02, 0.39);
+      const frameBottom = new THREE.Mesh(frameOuterGeo, frameMat);
+      frameBottom.position.set(x, 1.14 - doorHeight / 2 + 0.02, 0.39);
+      group.add(frameTop, frameBottom);
+
+      const handleGeo = new THREE.BoxGeometry(0.025, 0.45, 0.04);
+      const handle = new THREE.Mesh(handleGeo, handleMat);
+      const handleX = x > 0 ? x - 0.33 : x + 0.33;
+      handle.position.set(handleX, 1.14, 0.415);
+      group.add(handle);
+    });
+
+    const centerPillarGeo = new THREE.BoxGeometry(0.04, doorHeight, 0.04);
+    const centerPillar = new THREE.Mesh(centerPillarGeo, frameMat);
+    centerPillar.position.set(0, 1.14, 0.39);
+    group.add(centerPillar);
+
+    // 7. 正面頭上電光看板
+    const signGeo = new THREE.BoxGeometry(1.72, 0.22, 0.06);
+    const signMat = new THREE.MeshBasicMaterial({
+      map: createLabelTexture('🧊 冷たいお飲み物 DRINK COOLER 🥤', '#0e6251', '#76d7c4', 512, 64)
+    });
+    const sign = new THREE.Mesh(signGeo, signMat);
+    sign.position.set(0, 2.22, 0.05);
+    group.add(sign);
+
+    // 8. 庫内クールLED冷光
+    const coolLight = new THREE.PointLight(0x76d7c4, 0.75, 3.2);
+    coolLight.position.set(0, 1.65, 0.15);
+    group.add(coolLight);
+
+    group.userData = { isDrinkCooler: true };
+
+    group.traverse(c => {
+      if (c.isMesh) {
+        c.castShadow = true;
+        c.receiveShadow = true;
+      }
+    });
+
+    return group;
+  }
+
   // 3. レジカウンター
   function createRegisterModel() {
     const group = new THREE.Group();
@@ -1865,6 +2212,74 @@
     return group;
   }
 
+  // 3.5 ゴミ箱 (空き箱専用業務用ダストボックス)
+  function createTrashBinModel() {
+    const group = new THREE.Group();
+    group.name = 'fixture_trash_bin';
+
+    const bodyMat = new THREE.MeshLambertMaterial({ color: 0x27ae60 }); // エコグリーン
+    const baseMat = new THREE.MeshLambertMaterial({ color: 0x1e272c }); // ダークベース
+    const flapMat = new THREE.MeshLambertMaterial({ color: 0x1e8449 }); // フタ・スイング扉
+    const metalMat = new THREE.MeshLambertMaterial({ color: 0xbdc3c7, roughness: 0.3 }); // 金属バー
+
+    // 台座ベース
+    const baseGeo = new THREE.BoxGeometry(0.58, 0.06, 0.48);
+    const base = new THREE.Mesh(baseGeo, baseMat);
+    base.position.set(0, 0.03, 0);
+    group.add(base);
+
+    // 本体ボックス
+    const bodyGeo = new THREE.BoxGeometry(0.55, 0.76, 0.45);
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.set(0, 0.44, 0);
+    group.add(body);
+
+    // 上部トップカバー
+    const topGeo = new THREE.BoxGeometry(0.57, 0.12, 0.47);
+    const top = new THREE.Mesh(topGeo, flapMat);
+    top.position.set(0, 0.88, 0);
+    group.add(top);
+
+    // 正面スイング扉 (投入口)
+    const openingHoleGeo = new THREE.BoxGeometry(0.42, 0.22, 0.03);
+    const openingHoleMat = new THREE.MeshLambertMaterial({ color: 0x111618 });
+    const openingHole = new THREE.Mesh(openingHoleGeo, openingHoleMat);
+    openingHole.position.set(0, 0.65, 0.215);
+    group.add(openingHole);
+
+    const flapGeo = new THREE.BoxGeometry(0.40, 0.20, 0.02);
+    const flap = new THREE.Mesh(flapGeo, flapMat);
+    flap.position.set(0, 0.66, 0.21);
+    flap.rotation.x = -Math.PI / 10; // 少し奥に押されたようなリアルな角度
+    group.add(flap);
+
+    // ハンドルバー / 取っ手
+    const handleGeo = new THREE.BoxGeometry(0.24, 0.02, 0.03);
+    const handle = new THREE.Mesh(handleGeo, metalMat);
+    handle.position.set(0, 0.74, 0.23);
+    group.add(handle);
+
+    // 正面サイン・ラベル (ダンボール専用)
+    const signGeo = new THREE.BoxGeometry(0.44, 0.22, 0.02);
+    const signMat = new THREE.MeshBasicMaterial({
+      map: createLabelTexture('🗑️ 空き箱専用 DUSTBOX\n[Q] キーで廃棄', '#145a32', '#ffffff', 256, 128)
+    });
+    const sign = new THREE.Mesh(signGeo, signMat);
+    sign.position.set(0, 0.38, 0.23);
+    group.add(sign);
+
+    group.userData = { isTrashBin: true };
+
+    group.traverse(c => {
+      if (c.isMesh) {
+        c.castShadow = true;
+        c.receiveShadow = true;
+      }
+    });
+
+    return group;
+  }
+
   // 4. 配達ダンボール箱 (商品用 ＆ 備品用)
   function createDeliveryBoxMesh(options, countIfLegacy) {
     const group = new THREE.Group();
@@ -1880,10 +2295,10 @@
       fixture = options.fixture;
     } else if (options && options.item) {
       item = options.item;
-      count = options.count || 12;
+      count = options.count !== undefined ? options.count : 12;
     } else {
       item = options;
-      count = countIfLegacy || 12;
+      count = countIfLegacy !== undefined ? countIfLegacy : 12;
     }
 
     if (isFixture && fixture) {
@@ -1920,9 +2335,10 @@
       };
 
       const boxGeo = new THREE.BoxGeometry(0.5, 0.38, 0.4);
+      const boxLabelText = count > 0 ? `${item.name}\nx${count}` : `📦 空のダンボール箱\n(${item.name})`;
       const boxMat = new THREE.MeshLambertMaterial({
         color: 0xc89d6c,
-        map: createLabelTexture(`${item.name}\nx${count}`, '#c89d6c', '#3e2723', 256, 128)
+        map: createLabelTexture(boxLabelText, '#c89d6c', '#3e2723', 256, 128)
       });
       const box = new THREE.Mesh(boxGeo, boxMat);
       box.position.y = 0.19;
@@ -2062,7 +2478,13 @@
       this.capacity = 18;
       this.slots = [];
 
-      this.mesh = this.type === 'ambient' ? createAmbientShelfModel() : createChilledShelfModel();
+      if (this.type === 'ambient') {
+        this.mesh = createAmbientShelfModel();
+      } else if (this.type === 'drink_cooler') {
+        this.mesh = createDrinkCoolerModel();
+      } else {
+        this.mesh = createChilledShelfModel();
+      }
       this.mesh.position.copy(position);
       this.mesh.rotation.y = rotationY;
       this.mesh.userData = { shelfInstance: this, isInteractable: true };
@@ -2077,6 +2499,8 @@
         return item.category === CATEGORIES.NON_DAILY;
       } else if (this.type === 'chilled') {
         return item.category === CATEGORIES.DAILY;
+      } else if (this.type === 'drink_cooler') {
+        return item.subCategory === SUBCATEGORIES.DRINK;
       }
       return false;
     }
@@ -2106,6 +2530,32 @@
       return canAdd;
     }
 
+    takeItem(preferredItemId = null) {
+      if (this.slots.length === 0) return null;
+
+      let targetSlot = null;
+      if (preferredItemId) {
+        targetSlot = this.slots.find(s => s && s.itemId === preferredItemId && s.count > 0);
+      }
+      if (!targetSlot) {
+        targetSlot = this.slots.find(s => s && s.count > 0);
+      }
+      if (!targetSlot) return null;
+
+      targetSlot.count--;
+      const itemMaster = getItemById(targetSlot.itemId);
+
+      // countが0になった空スロットを整理
+      this.slots = this.slots.filter(s => s.count > 0);
+
+      this.updateVisuals();
+      soundManager.playPlaceItem();
+      if (typeof SaveManager !== 'undefined' && window.game) {
+        SaveManager.save(window.game, false);
+      }
+      return itemMaster;
+    }
+
     getTotalItemCount() {
       return this.slots.reduce((sum, s) => sum + Math.max(0, s.count), 0);
     }
@@ -2115,7 +2565,9 @@
         this.itemContainer.remove(this.itemContainer.children[0]);
       }
 
-      const yLevels = this.type === 'ambient' ? [0.42, 0.92, 1.42] : [0.62, 1.12, 1.62];
+      const yLevels = this.type === 'ambient'
+        ? [0.42, 0.92, 1.42]
+        : (this.type === 'drink_cooler' ? [0.48, 0.98, 1.48] : [0.62, 1.12, 1.62]);
       let currentSlotIndex = 0;
       const maxPerShelf = 6;
 
@@ -2152,6 +2604,16 @@
     }
   }
 
+  class TrashBinInstance {
+    constructor(position, rotationY = 0) {
+      this.id = 'trash_bin_' + Math.random().toString(36).substr(2, 9);
+      this.mesh = createTrashBinModel();
+      this.mesh.position.copy(position);
+      this.mesh.rotation.y = rotationY;
+      this.mesh.userData = { isTrashBin: true, trashBinInstance: this };
+    }
+  }
+
   class Store {
     constructor(scene) {
       this.scene = scene;
@@ -2169,11 +2631,13 @@
       this.shelves = [];
       this.register = null;
       this.deliveryBoxes = [];
+      this.trashBins = [];
 
       this.registerQueue = [];
       this.currentRegisterCustomer = null;
       this.dayNumber = 1;
       this.hiredEmployees = [];
+      this.unlockedLicenses = [];
     }
 
     update(delta) {
@@ -2227,6 +2691,35 @@
       this.dailyCustomersServed = 0;
     }
 
+    isLicenseUnlocked(licenseIdOrSubCategory) {
+      if (!this.unlockedLicenses) this.unlockedLicenses = [];
+      const license = LICENSE_CATALOG.find(l => l.id === licenseIdOrSubCategory || l.subCategory === licenseIdOrSubCategory);
+      if (!license) return true; // 対象外（備品など）は常にOK
+      return this.unlockedLicenses.includes(license.id);
+    }
+
+    purchaseLicense(licenseId) {
+      const license = LICENSE_CATALOG.find(l => l.id === licenseId);
+      if (!license) return { success: false, msg: '該当のライセンスが見つかりません' };
+      if (!this.unlockedLicenses) this.unlockedLicenses = [];
+      if (this.unlockedLicenses.includes(license.id)) {
+        return { success: false, msg: `既に『${license.name}』を取得しています` };
+      }
+      if (this.cash < license.cost) {
+        return { success: false, msg: `資金が不足しています (必要: ¥${license.cost.toLocaleString()})` };
+      }
+
+      this.cash -= license.cost;
+      this.dailyCost += license.cost;
+      this.unlockedLicenses.push(license.id);
+      soundManager.playRegisterDing();
+
+      if (window.game && window.game.multiplayer) {
+        window.game.multiplayer.broadcastLicensePurchase(license.id, this.cash, this.dailyCost);
+      }
+      return { success: true, license };
+    }
+
     purchaseFixture(fixtureId) {
       const fixture = FIXTURE_CATALOG.find(f => f.id === fixtureId);
       if (!fixture) return { success: false, msg: '該当の備品が見つかりません' };
@@ -2247,6 +2740,15 @@
     purchaseItem(itemId, count = 12) {
       const item = ITEM_CATALOG.find(i => i.id === itemId);
       if (!item) return { success: false, msg: '商品が見つかりません' };
+
+      const license = getLicenseBySubCategory(item.subCategory);
+      if (license && !this.isLicenseUnlocked(license.id)) {
+        return {
+          success: false,
+          msg: `🔒『${item.name}』を発注するには『${license.name}』(¥${license.cost.toLocaleString()}) の取得が必要です！管理PCのライセンスタブから取得してください。`,
+          requiresLicense: license
+        };
+      }
 
       const totalCost = item.cost * count;
       if (this.cash < totalCost) return { success: false, msg: '資金が不足しています' };
@@ -2327,6 +2829,13 @@
       this.register = new RegisterInstance(position, rotationY);
       this.scene.add(this.register.mesh);
       return this.register;
+    }
+
+    addTrashBin(position, rotationY = 0) {
+      const trashBin = new TrashBinInstance(position, rotationY);
+      this.trashBins.push(trashBin);
+      this.scene.add(trashBin.mesh);
+      return trashBin;
     }
   }
 
@@ -3271,6 +3780,9 @@
       this.managementModal = document.getElementById('management-modal');
       this.dayEndModal = document.getElementById('day-end-modal');
 
+      this.currentDailyFilter = 'all';
+      this.currentNonDailyFilter = 'all';
+
       this.initEventListeners();
       this.initCatalogUI();
     }
@@ -3405,119 +3917,527 @@
 
     initCatalogUI() {
       const fixtureList = document.getElementById('pc-fixture-list');
-      const dailyList = document.getElementById('pc-daily-list');
-      const nonDailyList = document.getElementById('pc-nondaily-list');
       const employeeList = document.getElementById('pc-employee-list');
 
-      fixtureList.innerHTML = '';
-      FIXTURE_CATALOG.forEach(fixture => {
-        const card = document.createElement('div');
-        card.className = 'catalog-card';
-        card.innerHTML = `
-          <div class="card-header">
-            <span class="card-badge fixture-badge">${fixture.subCategory}</span>
-            <h4>${fixture.name}</h4>
-          </div>
-          <p class="card-desc">${fixture.description}</p>
-          <div class="card-footer">
-            <span class="card-price">¥${fixture.cost.toLocaleString()}</span>
-            <button class="btn btn-buy" data-fixture-id="${fixture.id}">購入して発注</button>
-          </div>
-        `;
-        card.querySelector('.btn-buy').addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.buyFixture(fixture.id);
-        });
-        fixtureList.appendChild(card);
-      });
+      if (fixtureList) {
+        fixtureList.innerHTML = '';
+        FIXTURE_CATALOG.forEach(fixture => {
+          const card = document.createElement('div');
+          card.className = 'catalog-card fixture-card';
+          const icon = getFixtureIcon(fixture);
+          const canAfford = this.store.cash >= fixture.cost;
 
-      dailyList.innerHTML = '';
-      ITEM_CATALOG.filter(i => i.category === CATEGORIES.DAILY).forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'catalog-card';
-        card.innerHTML = `
-          <div class="card-header">
-            <span class="card-badge daily-badge">${item.subCategory}</span>
-            <h4>${item.name}</h4>
-          </div>
-          <p class="card-desc">${item.description}</p>
-          <div class="card-info">
-            <span>仕入値: ¥${item.cost}</span>
-            <span>売値: ¥${item.price}</span>
-          </div>
-          <div class="card-footer">
-            <span class="card-price">1箱(12個): ¥${(item.cost * 12).toLocaleString()}</span>
-            <button class="btn btn-buy" data-item-id="${item.id}">発注する</button>
-          </div>
-        `;
-        card.querySelector('.btn-buy').addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.buyItem(item.id, 12);
-        });
-        dailyList.appendChild(card);
-      });
-
-      nonDailyList.innerHTML = '';
-      ITEM_CATALOG.filter(i => i.category === CATEGORIES.NON_DAILY).forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'catalog-card';
-        card.innerHTML = `
-          <div class="card-header">
-            <span class="card-badge nondaily-badge">${item.subCategory}</span>
-            <h4>${item.name}</h4>
-          </div>
-          <p class="card-desc">${item.description}</p>
-          <div class="card-info">
-            <span>仕入値: ¥${item.cost}</span>
-            <span>売値: ¥${item.price}</span>
-          </div>
-          <div class="card-footer">
-            <span class="card-price">1箱(12個): ¥${(item.cost * 12).toLocaleString()}</span>
-            <button class="btn btn-buy" data-item-id="${item.id}">発注する</button>
-          </div>
-        `;
-        card.querySelector('.btn-buy').addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.buyItem(item.id, 12);
-        });
-        nonDailyList.appendChild(card);
-      });
-
-      employeeList.innerHTML = `
-        <div class="catalog-card">
-          <div class="card-header">
-            <span class="card-badge staff-badge">アルバイト</span>
-            <h4>店員 田中さん (可視化スタッフ)</h4>
-          </div>
-          <p class="card-desc">コンビニ制服を着て店舗で勤務するアルバイトスタッフです。店内に可視化配置されます。</p>
-          <div class="card-footer">
-            <span class="card-price">日給 ¥8,000</span>
-            <button class="btn btn-buy" id="btn-hire-tanaka">雇用する</button>
-          </div>
-        </div>
-      `;
-
-      const btnHire = employeeList.querySelector('#btn-hire-tanaka');
-      if (btnHire) {
-        btnHire.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (this.store.cash < 8000) {
-            this.showToast('資金が不足しています。');
-            return;
+          let specText = `陳列数: ${fixture.capacity || 18}個`;
+          if (fixture.id.includes('trash')) {
+            specText = '空箱を即座に消去 (Qキー)';
+          } else if (fixture.id.includes('register')) {
+            specText = '対面会計カウンター';
+          } else if (fixture.id.includes('drink')) {
+            specText = 'ドリンク専用 (容量18本)';
           }
-          this.store.cash -= 8000;
-          this.store.dailyCost += 8000;
-          if (!this.store.hiredEmployees) this.store.hiredEmployees = [];
-          if (!this.store.hiredEmployees.includes('田中さん')) {
-            this.store.hiredEmployees.push('田中さん');
+
+          card.innerHTML = `
+            <div class="card-top-row">
+              <div class="item-icon-bubble fixture-bubble">${icon}</div>
+              <div class="card-titles">
+                <div class="card-badge-row">
+                  <span class="card-badge fixture-badge">${fixture.subCategory}</span>
+                  <span class="spec-badge">${specText}</span>
+                </div>
+                <h4 class="card-name">${fixture.name}</h4>
+              </div>
+            </div>
+            <p class="card-desc">${fixture.description}</p>
+            <div class="card-footer">
+              <div class="card-price-box">
+                <span class="price-sub">本体価格</span>
+                <span class="card-price">¥${fixture.cost.toLocaleString()}</span>
+              </div>
+              <button class="btn btn-buy btn-fixture-buy ${canAfford ? '' : 'btn-disabled'}" data-fixture-id="${fixture.id}" ${canAfford ? '' : 'disabled'}>
+                ${canAfford ? '🛠️ 購入して発注' : '⚠️ 資金不足'}
+              </button>
+            </div>
+          `;
+          const btnBuy = card.querySelector('.btn-fixture-buy');
+          if (btnBuy && canAfford) {
+            btnBuy.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.buyFixture(fixture.id);
+            });
           }
-          this.game.customerManager.addEmployee('田中さん');
-          btnHire.disabled = true;
-          btnHire.textContent = '雇用済み';
-          this.showToast('田中さんを雇用しました！店舗内にスタッフが配置されました。');
-          SaveManager.save(this.game, false);
+          fixtureList.appendChild(card);
         });
       }
+
+      if (employeeList) {
+        const isHired = this.store.hiredEmployees && this.store.hiredEmployees.includes('田中さん');
+        const canAfford = this.store.cash >= 8000;
+
+        employeeList.innerHTML = `
+          <div class="catalog-card staff-card ${isHired ? 'hired' : ''}">
+            <div class="card-top-row">
+              <div class="item-icon-bubble staff-bubble">👔</div>
+              <div class="card-titles">
+                <div class="card-badge-row">
+                  <span class="card-badge staff-badge">アルバイトスタッフ</span>
+                  <span class="spec-badge">店内常駐・可視化</span>
+                </div>
+                <h4 class="card-name">店員 田中さん (可視化スタッフ)</h4>
+              </div>
+            </div>
+            <p class="card-desc">緑色のコンビニ制服を着て店舗内で勤務する頼れるアルバイトスタッフです。店内にリアルに配置され、店舗の雰囲気を活気づけます。</p>
+            <div class="staff-specs-box">
+              <div class="staff-spec-item">
+                <span class="spec-label">日給コスト</span>
+                <span class="spec-val">¥8,000 / 日</span>
+              </div>
+              <div class="staff-spec-item">
+                <span class="spec-label">勤務シフト</span>
+                <span class="spec-val">終日常駐</span>
+              </div>
+              <div class="staff-spec-item">
+                <span class="spec-label">ステータス</span>
+                <span class="spec-val ${isHired ? 'text-green' : 'text-blue'}">${isHired ? '✅ 勤務中' : '採用可能'}</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div class="card-price-box">
+                <span class="price-sub">採用時費用</span>
+                <span class="card-price">¥8,000</span>
+              </div>
+              ${isHired
+                ? `<button class="btn btn-buy btn-acquired" disabled>✅ 雇用済み (店内に勤務中)</button>`
+                : `<button class="btn btn-buy" id="btn-hire-tanaka" ${canAfford ? '' : 'disabled'}>${canAfford ? '👔 雇用する' : '⚠️ 資金不足'}</button>`
+              }
+            </div>
+          </div>
+        `;
+
+        const btnHire = employeeList.querySelector('#btn-hire-tanaka');
+        if (btnHire && !isHired) {
+          btnHire.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.store.cash < 8000) {
+              this.showToast('資金が不足しています。');
+              return;
+            }
+            this.store.cash -= 8000;
+            this.store.dailyCost += 8000;
+            if (!this.store.hiredEmployees) this.store.hiredEmployees = [];
+            if (!this.store.hiredEmployees.includes('田中さん')) {
+              this.store.hiredEmployees.push('田中さん');
+            }
+            this.game.customerManager.addEmployee('田中さん');
+            this.initCatalogUI();
+            this.update();
+            this.showToast('田中さんを雇用しました！店舗内にスタッフが配置されました。');
+            SaveManager.save(this.game, false);
+          });
+        }
+      }
+
+      this.renderLicensesUI();
+      this.renderProductCatalogs();
+    }
+
+    renderLicensesUI() {
+      const summaryBox = document.getElementById('pc-license-summary');
+      const licenseList = document.getElementById('pc-license-list');
+      if (!licenseList) return;
+
+      const totalCount = LICENSE_CATALOG.length;
+      const unlockedCount = LICENSE_CATALOG.filter(l => this.store.isLicenseUnlocked(l.id)).length;
+      const pct = Math.round((unlockedCount / totalCount) * 100);
+
+      if (summaryBox) {
+        summaryBox.innerHTML = `
+          <div class="license-summary-card">
+            <div class="license-summary-header">
+              <div class="summary-title-group">
+                <span class="summary-icon">📜</span>
+                <div>
+                  <h4 class="summary-title">カテゴリ販売ライセンス取得状況</h4>
+                  <p class="summary-desc">ライセンスを取得すると該当ジャンル全商品の発注が即座にアンロックされます。</p>
+                </div>
+              </div>
+              <div class="summary-stat-badge">
+                <span class="stat-num">${unlockedCount} / ${totalCount} 取得済</span>
+                <span class="stat-pct">(${pct}%)</span>
+              </div>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width: ${pct}%;"></div>
+            </div>
+          </div>
+        `;
+      }
+
+      licenseList.innerHTML = '';
+      LICENSE_CATALOG.forEach(license => {
+        const isUnlocked = this.store.isLicenseUnlocked(license.id);
+        const canAfford = this.store.cash >= license.cost;
+        const card = document.createElement('div');
+        card.className = `catalog-card license-card ${isUnlocked ? 'unlocked' : ''}`;
+        card.innerHTML = `
+          <div class="card-top-row">
+            <div class="item-icon-bubble license-bubble">${license.icon}</div>
+            <div class="card-titles">
+              <div class="card-badge-row">
+                <span class="card-badge ${license.badgeClass}">${license.subCategory}</span>
+                <span class="spec-badge ${isUnlocked ? 'badge-ok' : ''}">${isUnlocked ? '✅ 取得済み' : '🔒 未取得'}</span>
+              </div>
+              <h4 class="card-name">${license.name}</h4>
+            </div>
+          </div>
+          <p class="card-desc">${license.description}</p>
+          <div class="license-items-box">
+            <span class="license-items-title">📦 取扱可能商品 (${license.itemCount}品):</span>
+            <p class="license-items-text">${license.itemsSummary}</p>
+          </div>
+          <div class="license-req-box">
+            <span class="req-label">必要陳列設備:</span>
+            <span class="req-val">${license.requiredShelf}</span>
+          </div>
+          <div class="card-footer">
+            <div class="card-price-box">
+              <span class="price-sub">ライセンス取得費用</span>
+              <span class="card-price">¥${license.cost.toLocaleString()}</span>
+            </div>
+            ${isUnlocked
+              ? `<button class="btn btn-buy btn-acquired" disabled>✅ 取得済み (発注可能)</button>`
+              : `<button class="btn btn-buy btn-license-buy ${canAfford ? '' : 'btn-disabled'}" data-license-id="${license.id}" ${canAfford ? '' : 'disabled'}>
+                  ${canAfford ? '📜 ライセンス取得' : '⚠️ 資金不足'}
+                </button>`
+            }
+          </div>
+        `;
+
+        const btnBuy = card.querySelector('.btn-license-buy');
+        if (btnBuy && canAfford && !isUnlocked) {
+          btnBuy.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.buyLicense(license.id);
+          });
+        }
+        licenseList.appendChild(card);
+      });
+    }
+
+    renderProductCatalogs() {
+      const dailyList = document.getElementById('pc-daily-list');
+      const nonDailyList = document.getElementById('pc-nondaily-list');
+      const dailyFilterBar = document.getElementById('daily-filter-bar');
+      const nonDailyFilterBar = document.getElementById('nondaily-filter-bar');
+
+      // 1. デイリー商品 (米飯 ＆ パン)
+      if (dailyList) {
+        const dailySubCategories = [
+          { sub: SUBCATEGORIES.RICE, key: 'rice', label: '米飯・特製弁当', icon: '🍙' },
+          { sub: SUBCATEGORIES.BREAD, key: 'bread', label: 'パン・ベーカリー', icon: '🍞' }
+        ];
+
+        // フィルターバーの描画
+        if (dailyFilterBar) {
+          const riceItems = ITEM_CATALOG.filter(i => i.subCategory === SUBCATEGORIES.RICE);
+          const breadItems = ITEM_CATALOG.filter(i => i.subCategory === SUBCATEGORIES.BREAD);
+          const totalDaily = riceItems.length + breadItems.length;
+
+          dailyFilterBar.innerHTML = `
+            <button class="filter-pill ${this.currentDailyFilter === 'all' ? 'active' : ''}" data-filter="all">
+              🌟 すべて (${totalDaily}品)
+            </button>
+            <button class="filter-pill ${this.currentDailyFilter === 'rice' ? 'active' : ''}" data-filter="rice">
+              🍙 米飯・弁当 (${riceItems.length}品)
+            </button>
+            <button class="filter-pill ${this.currentDailyFilter === 'bread' ? 'active' : ''}" data-filter="bread">
+              🍞 パン・ベーカリー (${breadItems.length}品)
+            </button>
+          `;
+
+          dailyFilterBar.querySelectorAll('.filter-pill').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.currentDailyFilter = btn.dataset.filter;
+              this.renderProductCatalogs();
+            });
+          });
+        }
+
+        dailyList.innerHTML = '';
+
+        const activeDailyCats = dailySubCategories.filter(catInfo => {
+          if (this.currentDailyFilter === 'all') return true;
+          return catInfo.key === this.currentDailyFilter;
+        });
+
+        activeDailyCats.forEach(catInfo => {
+          const license = getLicenseBySubCategory(catInfo.sub);
+          const isUnlocked = license ? this.store.isLicenseUnlocked(license.id) : true;
+          const items = ITEM_CATALOG.filter(i => i.subCategory === catInfo.sub);
+
+          // カテゴリライセンス案内バナー
+          const banner = document.createElement('div');
+          banner.className = `category-license-banner ${isUnlocked ? 'unlocked' : 'locked'}`;
+          banner.innerHTML = `
+            <div class="banner-left">
+              <span class="banner-icon">${catInfo.icon}</span>
+              <span class="banner-title">${catInfo.label} (${items.length}品)</span>
+              <span class="banner-badge ${isUnlocked ? 'badge-ok' : 'badge-lock'}">
+                ${isUnlocked ? '✅ 販売ライセンス取得済 (発注可能)' : `🔒『${license ? license.name : 'ライセンス'}』未取得`}
+              </span>
+            </div>
+            ${(!isUnlocked && license) ? `
+              <button class="btn btn-banner-buy" data-license-id="${license.id}">
+                📜 ライセンスを取得する (¥${license.cost.toLocaleString()})
+              </button>
+            ` : ''}
+          `;
+          const btnBannerBuy = banner.querySelector('.btn-banner-buy');
+          if (btnBannerBuy && license) {
+            btnBannerBuy.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.buyLicense(license.id);
+            });
+          }
+          dailyList.appendChild(banner);
+
+          // 商品カード一覧
+          const itemsGrid = document.createElement('div');
+          itemsGrid.className = 'catalog-grid';
+          items.forEach(item => {
+            const card = document.createElement('div');
+            card.className = `catalog-card product-card ${!isUnlocked ? 'card-locked' : ''}`;
+            const icon = getItemIcon(item);
+            const boxCost = item.cost * 12;
+            const canAfford = this.store.cash >= boxCost;
+            const profit = item.price - item.cost;
+            const margin = Math.round((profit / item.price) * 100);
+
+            card.innerHTML = `
+              <div class="card-top-row">
+                <div class="item-icon-bubble item-bubble">${icon}</div>
+                <div class="card-titles">
+                  <div class="card-badge-row">
+                    <span class="card-badge daily-badge">${item.subCategory}</span>
+                    <span class="profit-badge">粗利 +¥${profit} (${margin}%)</span>
+                  </div>
+                  <h4 class="card-name">${item.name}</h4>
+                </div>
+              </div>
+              <p class="card-desc">${item.description}</p>
+              <div class="card-financials">
+                <div class="financial-col">
+                  <span class="fin-label">仕入単価</span>
+                  <span class="fin-val">¥${item.cost}</span>
+                </div>
+                <div class="financial-col">
+                  <span class="fin-label">販売単価</span>
+                  <span class="fin-val">¥${item.price}</span>
+                </div>
+                <div class="financial-col">
+                  <span class="fin-label">粗利益額</span>
+                  <span class="fin-val profit-val">+¥${profit}</span>
+                </div>
+              </div>
+              <div class="card-footer">
+                <div class="card-price-box">
+                  <span class="price-sub">1箱 (12個入)</span>
+                  <span class="card-price">¥${boxCost.toLocaleString()}</span>
+                </div>
+                ${isUnlocked
+                  ? `<button class="btn btn-buy btn-order ${canAfford ? '' : 'btn-disabled'}" data-item-id="${item.id}" ${canAfford ? '' : 'disabled'}>
+                      ${canAfford ? '🛒 発注する' : '⚠️ 資金不足'}
+                    </button>`
+                  : `<button class="btn btn-buy btn-locked" data-license-id="${license.id}" title="クリックでライセンス取得">
+                      🔒 要: ${license.name}
+                    </button>`
+                }
+              </div>
+            `;
+
+            if (isUnlocked) {
+              const btnOrder = card.querySelector('.btn-order');
+              if (btnOrder && canAfford) {
+                btnOrder.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  this.buyItem(item.id, 12);
+                });
+              }
+            } else {
+              const btnLocked = card.querySelector('.btn-locked');
+              if (btnLocked && license) {
+                btnLocked.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  this.buyLicense(license.id);
+                });
+              }
+            }
+            itemsGrid.appendChild(card);
+          });
+          dailyList.appendChild(itemsGrid);
+        });
+      }
+
+      // 2. 非デイリー商品 (お菓子 ＆ ドリンク)
+      if (nonDailyList) {
+        const nonDailySubCategories = [
+          { sub: SUBCATEGORIES.SNACK, key: 'snack', label: 'お菓子・スナック', icon: '🍫' },
+          { sub: SUBCATEGORIES.DRINK, key: 'drink', label: '飲料・ドリンク', icon: '🥤' }
+        ];
+
+        // フィルターバーの描画
+        if (nonDailyFilterBar) {
+          const snackItems = ITEM_CATALOG.filter(i => i.subCategory === SUBCATEGORIES.SNACK);
+          const drinkItems = ITEM_CATALOG.filter(i => i.subCategory === SUBCATEGORIES.DRINK);
+          const totalNonDaily = snackItems.length + drinkItems.length;
+
+          nonDailyFilterBar.innerHTML = `
+            <button class="filter-pill ${this.currentNonDailyFilter === 'all' ? 'active' : ''}" data-filter="all">
+              🌟 すべて (${totalNonDaily}品)
+            </button>
+            <button class="filter-pill ${this.currentNonDailyFilter === 'snack' ? 'active' : ''}" data-filter="snack">
+              🍫 お菓子・スナック (${snackItems.length}品)
+            </button>
+            <button class="filter-pill ${this.currentNonDailyFilter === 'drink' ? 'active' : ''}" data-filter="drink">
+              🥤 飲料・ドリンク (${drinkItems.length}品)
+            </button>
+          `;
+
+          nonDailyFilterBar.querySelectorAll('.filter-pill').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.currentNonDailyFilter = btn.dataset.filter;
+              this.renderProductCatalogs();
+            });
+          });
+        }
+
+        nonDailyList.innerHTML = '';
+
+        const activeNonDailyCats = nonDailySubCategories.filter(catInfo => {
+          if (this.currentNonDailyFilter === 'all') return true;
+          return catInfo.key === this.currentNonDailyFilter;
+        });
+
+        activeNonDailyCats.forEach(catInfo => {
+          const license = getLicenseBySubCategory(catInfo.sub);
+          const isUnlocked = license ? this.store.isLicenseUnlocked(license.id) : true;
+          const items = ITEM_CATALOG.filter(i => i.subCategory === catInfo.sub);
+
+          // カテゴリライセンス案内バナー
+          const banner = document.createElement('div');
+          banner.className = `category-license-banner ${isUnlocked ? 'unlocked' : 'locked'}`;
+          banner.innerHTML = `
+            <div class="banner-left">
+              <span class="banner-icon">${catInfo.icon}</span>
+              <span class="banner-title">${catInfo.label} (${items.length}品)</span>
+              <span class="banner-badge ${isUnlocked ? 'badge-ok' : 'badge-lock'}">
+                ${isUnlocked ? '✅ 販売ライセンス取得済 (発注可能)' : `🔒『${license ? license.name : 'ライセンス'}』未取得`}
+              </span>
+            </div>
+            ${(!isUnlocked && license) ? `
+              <button class="btn btn-banner-buy" data-license-id="${license.id}">
+                📜 ライセンスを取得する (¥${license.cost.toLocaleString()})
+              </button>
+            ` : ''}
+          `;
+          const btnBannerBuy = banner.querySelector('.btn-banner-buy');
+          if (btnBannerBuy && license) {
+            btnBannerBuy.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.buyLicense(license.id);
+            });
+          }
+          nonDailyList.appendChild(banner);
+
+          // 商品カード一覧
+          const itemsGrid = document.createElement('div');
+          itemsGrid.className = 'catalog-grid';
+          items.forEach(item => {
+            const card = document.createElement('div');
+            card.className = `catalog-card product-card ${!isUnlocked ? 'card-locked' : ''}`;
+            const icon = getItemIcon(item);
+            const boxCost = item.cost * 12;
+            const canAfford = this.store.cash >= boxCost;
+            const profit = item.price - item.cost;
+            const margin = Math.round((profit / item.price) * 100);
+
+            card.innerHTML = `
+              <div class="card-top-row">
+                <div class="item-icon-bubble item-bubble">${icon}</div>
+                <div class="card-titles">
+                  <div class="card-badge-row">
+                    <span class="card-badge nondaily-badge">${item.subCategory}</span>
+                    <span class="profit-badge">粗利 +¥${profit} (${margin}%)</span>
+                  </div>
+                  <h4 class="card-name">${item.name}</h4>
+                </div>
+              </div>
+              <p class="card-desc">${item.description}</p>
+              <div class="card-financials">
+                <div class="financial-col">
+                  <span class="fin-label">仕入単価</span>
+                  <span class="fin-val">¥${item.cost}</span>
+                </div>
+                <div class="financial-col">
+                  <span class="fin-label">販売単価</span>
+                  <span class="fin-val">¥${item.price}</span>
+                </div>
+                <div class="financial-col">
+                  <span class="fin-label">粗利益額</span>
+                  <span class="fin-val profit-val">+¥${profit}</span>
+                </div>
+              </div>
+              <div class="card-footer">
+                <div class="card-price-box">
+                  <span class="price-sub">1箱 (12個入)</span>
+                  <span class="card-price">¥${boxCost.toLocaleString()}</span>
+                </div>
+                ${isUnlocked
+                  ? `<button class="btn btn-buy btn-order ${canAfford ? '' : 'btn-disabled'}" data-item-id="${item.id}" ${canAfford ? '' : 'disabled'}>
+                      ${canAfford ? '🛒 発注する' : '⚠️ 資金不足'}
+                    </button>`
+                  : `<button class="btn btn-buy btn-locked" data-license-id="${license.id}" title="クリックでライセンス取得">
+                      🔒 要: ${license.name}
+                    </button>`
+                }
+              </div>
+            `;
+
+            if (isUnlocked) {
+              const btnOrder = card.querySelector('.btn-order');
+              if (btnOrder && canAfford) {
+                btnOrder.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  this.buyItem(item.id, 12);
+                });
+              }
+            } else {
+              const btnLocked = card.querySelector('.btn-locked');
+              if (btnLocked && license) {
+                btnLocked.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  this.buyLicense(license.id);
+                });
+              }
+            }
+            itemsGrid.appendChild(card);
+          });
+          nonDailyList.appendChild(itemsGrid);
+        });
+      }
+    }
+
+    buyLicense(licenseId) {
+      const res = this.store.purchaseLicense(licenseId);
+      if (!res.success) {
+        this.showToast(res.msg);
+        return;
+      }
+      this.initCatalogUI();
+      this.update();
+      SaveManager.save(this.game, false);
+      this.showToast(`🎉『${res.license.name}』を取得しました！${res.license.subCategory}商品の発注がアンロックされました！`);
     }
 
     buyFixture(fixtureId) {
@@ -3526,6 +4446,8 @@
         this.showToast(res.msg);
         return;
       }
+      this.initCatalogUI();
+      this.update();
       SaveManager.save(this.game, false);
       this.showToast(`【配達完了】店の外に『${res.fixture.name}』の大型ダンボールが届きました！外から運んで設置してください。`);
     }
@@ -3536,11 +4458,14 @@
         this.showToast(res.msg);
         return;
       }
+      this.initCatalogUI();
+      this.update();
       SaveManager.save(this.game, false);
       this.showToast(`【配達完了】店の外に『${res.item.name}』の段ボールが届きました！`);
     }
 
     openManagementPC() {
+      this.initCatalogUI();
       this.managementModal.classList.remove('hidden');
       if (document.exitPointerLock) document.exitPointerLock();
     }
@@ -3693,7 +4618,8 @@
           dailyCost: game.store.dailyCost,
           dailyCustomersServed: game.store.dailyCustomersServed,
           isTimeRunning: !!game.store.isTimeRunning,
-          hiredEmployees: game.store.hiredEmployees || []
+          hiredEmployees: game.store.hiredEmployees || [],
+          unlockedLicenses: game.store.unlockedLicenses || []
         },
         shelves: game.store.shelves.map(shelf => ({
           type: shelf.type,
@@ -3705,6 +4631,10 @@
           position: { x: game.store.register.mesh.position.x, y: game.store.register.mesh.position.y, z: game.store.register.mesh.position.z },
           rotationY: game.store.register.mesh.rotation.y
         } : null,
+        trashBins: (game.store.trashBins || []).map(tb => ({
+          position: { x: tb.mesh.position.x, y: tb.mesh.position.y, z: tb.mesh.position.z },
+          rotationY: tb.mesh.rotation.y
+        })),
         deliveryBoxes: game.store.deliveryBoxes.map(b => ({
           isFixtureBox: !!b.isFixtureBox,
           fixtureId: b.fixture ? b.fixture.id : null,
@@ -3719,7 +4649,7 @@
     static applySnapshot(game, data) {
       if (!game || !game.store || !data || !data.store) return false;
 
-      // 1. 既存の棚・レジ・配達箱・客・スタッフをクリーンアップ
+      // 1. 既存の棚・レジ・ゴミ箱・配達箱・客・スタッフをクリーンアップ
       game.store.shelves.forEach(s => game.store.scene.remove(s.mesh));
       game.store.shelves = [];
 
@@ -3727,6 +4657,11 @@
         game.store.scene.remove(game.store.register.mesh);
         game.store.register = null;
       }
+
+      if (game.store.trashBins) {
+        game.store.trashBins.forEach(tb => game.store.scene.remove(tb.mesh));
+      }
+      game.store.trashBins = [];
 
       game.store.deliveryBoxes.forEach(b => game.store.scene.remove(b.mesh));
       game.store.deliveryBoxes = [];
@@ -3749,6 +4684,26 @@
       game.store.isTimeRunning = !!data.store.isTimeRunning;
       game.store.dayEndedFired = false;
       game.store.hiredEmployees = data.store.hiredEmployees || [];
+      game.store.unlockedLicenses = Array.isArray(data.store.unlockedLicenses) ? [...data.store.unlockedLicenses] : [];
+
+      // 既存セーブデータ互換性: unlockedLicenses が未記録のデータの場合、すでに棚や配達箱に存在する商品のライセンスを自動取得
+      if (!Array.isArray(data.store.unlockedLicenses)) {
+        if (Array.isArray(data.shelves)) {
+          data.shelves.forEach(s => {
+            if (s.slots) {
+              s.slots.forEach(sl => {
+                const item = getItemById(sl.itemId);
+                if (item) {
+                  const lic = getLicenseBySubCategory(item.subCategory);
+                  if (lic && !game.store.unlockedLicenses.includes(lic.id)) {
+                    game.store.unlockedLicenses.push(lic.id);
+                  }
+                }
+              });
+            }
+          });
+        }
+      }
 
       // 3. 棚の復元
       if (Array.isArray(data.shelves)) {
@@ -3804,6 +4759,16 @@
         });
       }
 
+      // 5.5 ゴミ箱の復元
+      if (Array.isArray(data.trashBins)) {
+        data.trashBins.forEach(tbData => {
+          game.store.addTrashBin(
+            new THREE.Vector3(tbData.position.x, tbData.position.y, tbData.position.z),
+            tbData.rotationY || 0
+          );
+        });
+      }
+
       // 6. スタッフ復元
       if (Array.isArray(game.store.hiredEmployees)) {
         game.store.hiredEmployees.forEach(empName => {
@@ -3820,6 +4785,12 @@
 
       // 7. UI 同期
       game.ui.update();
+      if (typeof game.ui.renderLicensesUI === 'function') {
+        game.ui.renderLicensesUI();
+      }
+      if (typeof game.ui.renderProductCatalogs === 'function') {
+        game.ui.renderProductCatalogs();
+      }
       if (game.ui.btnToggleClock) {
         if (game.store.isTimeRunning) {
           game.ui.btnToggleClock.textContent = '⏸ 一時停止 (時間を止める)';
@@ -3860,12 +4831,14 @@
               isFixtureBox: !!game.holdingBox.isFixtureBox,
               fixtureId: game.holdingBox.fixture ? game.holdingBox.fixture.id : (game.holdingBox.placementFixture ? game.holdingBox.placementFixture.id : null),
               itemId: game.holdingBox.item ? game.holdingBox.item.id : null,
-              count: game.holdingBox.count || 0,
+              count: game.holdingBox.count !== undefined ? game.holdingBox.count : 0,
+              isOpen: !!game.holdingBox.isOpen,
               itemName: game.holdingBox.itemName || ''
             } : null
           },
           shelves: snapshot.shelves,
           register: snapshot.register,
+          trashBins: snapshot.trashBins,
           deliveryBoxes: snapshot.deliveryBoxes
         };
 
@@ -3909,16 +4882,19 @@
             if (hb.isFixtureBox) {
               const fixture = FIXTURE_CATALOG.find(f => f.id === hb.fixtureId);
               if (fixture) {
-                game.holdingBox = { isFixtureBox: true, fixture, itemName: `[備品] ${fixture.name}` };
+                game.holdingBox = { isFixtureBox: true, fixture, isOpen: !!hb.isOpen, itemName: `[備品] ${fixture.name}` };
               }
             } else {
               const item = ITEM_CATALOG.find(i => i.id === hb.itemId);
               if (item) {
-                game.holdingBox = { isFixtureBox: false, item, count: hb.count, itemName: item.name };
+                game.holdingBox = { isFixtureBox: false, item, count: hb.count !== undefined ? hb.count : 0, isOpen: !!hb.isOpen, itemName: item.name };
               }
             }
           } else {
             game.holdingBox = null;
+          }
+          if (typeof game.updateHandHoldingBox === 'function') {
+            game.updateHandHoldingBox();
           }
         }
 
@@ -4345,6 +5321,8 @@
           const pos = new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z);
           if (data.fixtureType === 'register') {
             this.game.store.setRegister(pos, data.rotY);
+          } else if (data.fixtureType === 'trash_bin') {
+            this.game.store.addTrashBin(pos, data.rotY);
           } else {
             this.game.store.addShelf(data.fixtureType, pos, data.rotY);
           }
@@ -4361,6 +5339,18 @@
               shelf.addItem(item, data.count);
               soundManager.playPlaceItem();
               this.game.ui.showToast(`パートナーが棚に『${item.name}』を補充しました！`);
+            }
+          }
+          break;
+        }
+
+        case 'SHELF_TAKE_ITEM': {
+          const shelf = this.game.store.shelves[data.shelfIndex];
+          if (shelf) {
+            const item = shelf.takeItem(data.itemId);
+            if (item) {
+              soundManager.playPlaceItem();
+              this.game.ui.showToast(`パートナーが棚から『${item.name}』を回収しました！`);
             }
           }
           break;
@@ -4435,6 +5425,26 @@
           }
           soundManager.playRegisterDing();
           this.game.ui.update();
+          break;
+        }
+
+        case 'PURCHASE_LICENSE': {
+          this.game.store.cash = data.newCash;
+          if (data.newDailyCost !== undefined) this.game.store.dailyCost = data.newDailyCost;
+          if (!this.game.store.unlockedLicenses) this.game.store.unlockedLicenses = [];
+          if (!this.game.store.unlockedLicenses.includes(data.licenseId)) {
+            this.game.store.unlockedLicenses.push(data.licenseId);
+          }
+          const lic = getLicenseById(data.licenseId);
+          soundManager.playRegisterDing();
+          if (typeof this.game.ui.renderLicensesUI === 'function') {
+            this.game.ui.renderLicensesUI();
+          }
+          if (typeof this.game.ui.renderProductCatalogs === 'function') {
+            this.game.ui.renderProductCatalogs();
+          }
+          this.game.ui.update();
+          this.game.ui.showToast(`📜 パートナーが『${lic ? lic.name : '商品ライセンス'}』を取得しました！発注がアンロックされました。`);
           break;
         }
 
@@ -4582,6 +5592,14 @@
       });
     }
 
+    broadcastShelfTakeItem(shelfIndex, itemId) {
+      this.send({
+        type: 'SHELF_TAKE_ITEM',
+        shelfIndex: shelfIndex,
+        itemId: itemId
+      });
+    }
+
     broadcastPickUpBox(pos) {
       this.send({
         type: 'PICK_UP_BOX',
@@ -4607,6 +5625,15 @@
         isFixture: isFixture,
         id: id,
         count: count,
+        newCash: newCash,
+        newDailyCost: newDailyCost
+      });
+    }
+
+    broadcastLicensePurchase(licenseId, newCash, newDailyCost) {
+      this.send({
+        type: 'PURCHASE_LICENSE',
+        licenseId: licenseId,
         newCash: newCash,
         newDailyCost: newDailyCost
       });
@@ -4685,6 +5712,7 @@
       this.wallColliders = [];
       this.setupFPSControls();
       this.buildStoreEnvironment();
+      this.setupPlayerHands();
 
       this.raycaster = new THREE.Raycaster();
       this.mouse = new THREE.Vector2(0, 0);
@@ -4927,7 +5955,25 @@
         this.keys[e.code] = true;
 
         if (e.code === 'KeyE') {
-          this.handleInteraction();
+          if (this.holdingBox) {
+            const shelf = this.checkShelfInFront();
+            if (shelf) {
+              if (this.holdingBox.isOpen) {
+                this.handleInteraction();
+              } else {
+                this.toggleBoxOpenClose();
+                this.ui.showToast('📦 箱を開封しました！もう一度押すと棚に陳列できます');
+              }
+            } else {
+              this.toggleBoxOpenClose();
+            }
+          } else {
+            this.handleInteraction();
+          }
+        }
+
+        if (e.code === 'KeyQ') {
+          this.disposeHoldingBoxToTrash();
         }
 
         if (e.code === 'KeyO') {
@@ -4967,6 +6013,11 @@
         const movementX = e.movementX || 0;
         const movementY = e.movementY || 0;
 
+        if (this.handAnim) {
+          this.handAnim.targetSwayX = Math.max(-0.035, Math.min(0.035, (this.handAnim.targetSwayX || 0) - movementX * 0.0003));
+          this.handAnim.targetSwayY = Math.max(-0.035, Math.min(0.035, (this.handAnim.targetSwayY || 0) + movementY * 0.0003));
+        }
+
         this.euler.setFromQuaternion(this.camera.quaternion);
         this.euler.y -= movementX * 0.0022;
         this.euler.x -= movementY * 0.0022;
@@ -4979,16 +6030,38 @@
         if (this.isAnyModalOpen()) return;
 
         if (e.button === 0) {
+          if (this.isPointerLocked) {
+            this.triggerHandAction();
+          }
           if (this.placementMode) {
             this.confirmPlacement();
           } else if (this.isPointerLocked) {
-            this.handleInteraction();
+            if (this.holdingBox) {
+              const shelf = this.checkShelfInFront();
+              if (shelf) {
+                if (this.holdingBox.isOpen) {
+                  this.handleInteraction();
+                } else {
+                  this.toggleBoxOpenClose();
+                  this.ui.showToast('📦 箱を開封しました！もう一度クリックで棚に陳列できます');
+                }
+              } else {
+                this.toggleBoxOpenClose();
+              }
+            } else {
+              this.handleInteraction();
+            }
           }
         } else if (e.button === 2) {
           if (this.placementMode) {
             this.cancelPlacement(true);
           } else if (this.holdingBox) {
-            this.dropHoldingBox();
+            const shelf = this.checkShelfInFront();
+            if (shelf) {
+              this.retrieveItemFromShelf(shelf);
+            } else {
+              this.dropHoldingBox();
+            }
           }
         }
       });
@@ -4997,7 +6070,11 @@
     }
 
     buildStoreEnvironment() {
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.78);
+      this.streetLights = [];
+      this.storefrontDownlights = [];
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+      this.ambientLight = ambientLight;
       this.scene.add(ambientLight);
 
       const dirLight = new THREE.DirectionalLight(0xfffaed, 0.85);
@@ -5005,6 +6082,7 @@
       dirLight.castShadow = true;
       dirLight.shadow.mapSize.width = 1024;
       dirLight.shadow.mapSize.height = 1024;
+      this.dirLight = dirLight;
       this.scene.add(dirLight);
 
       // コライダー配列の初期化
@@ -5311,12 +6389,12 @@
       locker.position.set(11.2, 1.1, 1.0);
       offFurnGroup.add(locker);
 
-      // 連絡用ホワイトボード (奥壁 x = 9.0, y = 1.8, z = -6.83)
+      // 連絡用ホワイトボード (奥壁 x = 9.0, y = 2.05, z = -6.83)
       const wbMat = new THREE.MeshBasicMaterial({
         map: createWhiteboardTexture()
       });
-      const whiteboard = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.5), wbMat);
-      whiteboard.position.set(9.0, 1.8, -6.83);
+      const whiteboard = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.2), wbMat);
+      whiteboard.position.set(9.0, 2.05, -6.83);
       offFurnGroup.add(whiteboard);
 
       // 休憩用テーブル ＆ イス (x = 9.0, z = 3.8)
@@ -5359,12 +6437,15 @@
 
       // 屋外環境 (駐車場 ＆ 街並み ＆ 裏の配達受取エリア) を構築
       this.buildStoreExteriorAndScenery();
+
+      // 初期の昼夜ライティングを反映
+      this.updateDayNightLighting();
     }
 
     createOfficeDesk() {
-      // 仕様: 店舗管理PCは「事務所」内(x: 9.0, z: -3.5)に設置
+      // 仕様: 店舗管理PCは「事務所」奥壁際(x: 9.6, z: -6.2)に壁際設置し、部屋中央・入口の導線を確保
       const group = new THREE.Group();
-      group.position.set(9.0, 0, -3.5);
+      group.position.set(9.6, 0, -6.2);
 
       const deskMat = new THREE.MeshLambertMaterial({ color: 0x34495e });
       const deskTop = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.9), deskMat);
@@ -5470,9 +6551,9 @@
     }
 
     createOpenCloseSwitch() {
-      // 事務所内、PCデスクの左手前 (x: 7.5, y: 0, z: -3.2) に開店・閉店操作スタンドを配置
+      // 事務所奥壁際 (x: 7.3, y: 0, z: -6.5) に開店・閉店操作スタンドを壁際配置し、導線を完全に確保
       const group = new THREE.Group();
-      group.position.set(7.5, 0, -3.2);
+      group.position.set(7.3, 0, -6.5);
 
       // 台座ベース
       const baseMat = new THREE.MeshLambertMaterial({ color: 0x2c3e50 });
@@ -5578,6 +6659,7 @@
       const floodLight = new THREE.PointLight(0xfffaed, 0.6, 9.0);
       floodLight.position.set(-9.8, 3.2, -7.3);
       outdoorGroup.add(floodLight);
+      this.deliveryFloodLight = floodLight;
 
       // ==========================================
       // B. 屋外・手前の「駐車場」 (Parking Lot)
@@ -5680,6 +6762,7 @@
         const spot = new THREE.PointLight(0xfff3cc, 0.5, 7);
         spot.position.set(x, 4.2, 7.8);
         outdoorGroup.add(spot);
+        this.storefrontDownlights.push(spot);
       });
 
       // 自動ドアサッシ枠 ＆ センサー
@@ -5818,6 +6901,7 @@
       const poleLight = new THREE.PointLight(0xfffaed, 0.8, 12);
       poleLight.position.set(0, 5.8, 0.5);
       poleGroup.add(poleLight);
+      this.poleLight = poleLight;
       outdoorGroup.add(poleGroup);
 
       // 街路灯 ＆ 街路樹
@@ -5833,6 +6917,13 @@
         const lantern = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.4), new THREE.MeshBasicMaterial({ color: 0xfff9e6 }));
         lantern.position.set(0, 4.75, 0.7);
         lampGroup.add(lantern);
+
+        // 街路灯の夜間照明 (暖色PointLight)
+        const lampLight = new THREE.PointLight(0xffeaa7, 0, 11);
+        lampLight.position.set(0, 4.5, 0.7);
+        lampGroup.add(lampLight);
+        this.streetLights.push(lampLight);
+
         outdoorGroup.add(lampGroup);
 
         const treeGroup = new THREE.Group();
@@ -5993,6 +7084,10 @@
         this.ghostMesh = createAmbientShelfModel();
       } else if (fixture.shelfType === 'chilled') {
         this.ghostMesh = createChilledShelfModel();
+      } else if (fixture.shelfType === 'drink_cooler') {
+        this.ghostMesh = createDrinkCoolerModel();
+      } else if (fixture.shelfType === 'trash_bin') {
+        this.ghostMesh = createTrashBinModel();
       } else {
         this.ghostMesh = createRegisterModel();
       }
@@ -6045,8 +7140,12 @@
         this.store.addShelf('ambient', pos, rotY);
       } else if (this.placementFixture.shelfType === 'chilled') {
         this.store.addShelf('chilled', pos, rotY);
+      } else if (this.placementFixture.shelfType === 'drink_cooler') {
+        this.store.addShelf('drink_cooler', pos, rotY);
       } else if (this.placementFixture.shelfType === 'register') {
         this.store.setRegister(pos, rotY);
+      } else if (this.placementFixture.shelfType === 'trash_bin') {
+        this.store.addTrashBin(pos, rotY);
       }
 
       soundManager.playPlaceItem();
@@ -6056,6 +7155,7 @@
       this.holdingBox = null;
       this.placementSourceBox = null;
       this.cancelPlacement(false);
+      this.triggerHandAction();
 
       this.ui.showToast(`『${fixtureName}』を開封・設置しました！`);
       SaveManager.save(this, false);
@@ -6085,6 +7185,7 @@
       if (this.store.register) interactables.push(this.store.register.mesh);
       this.store.shelves.forEach(s => interactables.push(s.mesh));
       this.store.deliveryBoxes.forEach(b => interactables.push(b.mesh));
+      if (this.store.trashBins) this.store.trashBins.forEach(tb => interactables.push(tb.mesh));
       if (this.officeDeskGroup) interactables.push(this.officeDeskGroup);
       if (this.openCloseSwitchGroup) interactables.push(this.openCloseSwitchGroup);
 
@@ -6092,7 +7193,7 @@
       if (intersects.length === 0) return;
 
       let hitObj = intersects[0].object;
-      while (hitObj.parent && !hitObj.userData.shelfInstance && !hitObj.userData.isRegister && hitObj.name !== 'delivery_box' && !hitObj.userData.isPC && !hitObj.userData.isOpenCloseSwitch) {
+      while (hitObj.parent && !hitObj.userData.shelfInstance && !hitObj.userData.isRegister && hitObj.name !== 'delivery_box' && !hitObj.userData.isPC && !hitObj.userData.isOpenCloseSwitch && !hitObj.userData.isTrashBin && !hitObj.userData.trashBinInstance) {
         hitObj = hitObj.parent;
       }
 
@@ -6119,12 +7220,18 @@
           this.multiplayer.broadcastPickUpBox(boxPos);
         }
 
+        boxData.isOpen = !!hitObj.userData.isOpen;
         this.holdingBox = boxData;
+        this.triggerHandAction();
 
         if (boxData.isFixtureBox) {
           this.startPlacementMode(boxData.fixture, boxData);
         } else {
-          this.ui.showPrompt('[左クリック] 棚を狙って陳列 / [右クリック] 床に置く');
+          if (boxData.isOpen) {
+            this.ui.showPrompt('[左クリック] 箱を閉じる (棚を狙って陳列) / [右クリック] 床に置く');
+          } else {
+            this.ui.showPrompt('[左クリック] 箱を開ける / [右クリック] 床に置く');
+          }
         }
         return;
       }
@@ -6135,24 +7242,46 @@
         if (this.holdingBox) {
           if (this.holdingBox.isFixtureBox) return;
 
-          const item = this.holdingBox.item;
-          if (!shelf.canAcceptItem(item)) {
-            soundManager.playError();
-            const targetShelfName = item.category === 'デイリー' ? '冷蔵棚(デイリー専用)' : '商品棚(非デイリー専用)';
-            this.ui.showToast(`【陳列不可】『${item.name}』は${item.category}商品です。『${targetShelfName}』に陳列してください！`);
+          // 箱が閉じていれば開ける
+          if (!this.holdingBox.isOpen) {
+            this.toggleBoxOpenClose();
+            this.ui.showToast('📦 箱を開封しました！もう一度クリックで棚に陳列できます');
             return;
           }
 
-          const added = shelf.addItem(item, this.holdingBox.count);
+          // 空箱の場合は陳列不可（右クリックで回収を案内）
+          if (this.holdingBox.count <= 0) {
+            this.ui.showToast('箱は空です。棚に向かって【右クリック】で商品を回収できます');
+            return;
+          }
+
+          const item = this.holdingBox.item;
+          if (!shelf.canAcceptItem(item)) {
+            soundManager.playError();
+            if (shelf.type === 'drink_cooler') {
+              this.ui.showToast(`【陳列不可】『${item.name}』はドリンクではありません。『ドリンク専用冷蔵庫』には飲料商品のみ陳列できます！`);
+            } else {
+              const targetShelfName = item.category === 'デイリー' ? '冷蔵棚(デイリー専用)' : '商品棚(非デイリー専用)';
+              this.ui.showToast(`【陳列不可】『${item.name}』は${item.category}商品です。『${targetShelfName}』に陳列してください！`);
+            }
+            return;
+          }
+
+          const added = shelf.addItem(item, 1);
           if (added > 0) {
+            this.triggerHandAction();
             if (this.multiplayer) {
               const shelfIdx = this.store.shelves.indexOf(shelf);
               this.multiplayer.broadcastShelfAddItem(shelfIdx, item.id, added);
             }
             this.holdingBox.count -= added;
+            this.updateHandHoldingBox();
             if (this.holdingBox.count <= 0) {
-              this.holdingBox = null;
-              this.ui.showPrompt('');
+              this.holdingBox.count = 0;
+              this.ui.showToast(`『${item.name}』をすべて陳列しました！(棚を右クリックで商品を回収可能)`);
+              this.updateCrosshairPrompt();
+            } else {
+              this.updateCrosshairPrompt();
             }
           } else {
             this.ui.showToast('この棚は満杯です！ (18/18)');
@@ -6174,6 +7303,121 @@
         this.ui.toggleStoreClock();
         return;
       }
+
+      // 6. ゴミ箱 (空き箱廃棄は [Q] キー)
+      if (hitObj.userData && (hitObj.userData.isTrashBin || hitObj.userData.trashBinInstance)) {
+        if (this.holdingBox) {
+          if (this.holdingBox.isFixtureBox) {
+            soundManager.playError();
+            this.ui.showToast('⚠️ 備品箱は捨てられません！店内に配置してください。');
+          } else if (this.holdingBox.count > 0) {
+            soundManager.playError();
+            this.ui.showToast(`⚠️ 『${this.holdingBox.itemName}』がまだ ${this.holdingBox.count}個 残っています！棚に陳列して空にしてから捨ててください。`);
+          } else {
+            this.ui.showToast('🗑️ 空のダンボール箱は【Qキー】を押すとゴミ箱に廃棄できます！');
+          }
+        } else {
+          this.ui.showToast('🗑️ ゴミ箱です。空のダンボール箱を持って【Qキー】を押すと廃棄できます。');
+        }
+        return;
+      }
+    }
+
+    disposeHoldingBoxToTrash() {
+      const trashBin = this.checkTrashBinInFront();
+      if (!trashBin) {
+        if (this.holdingBox) {
+          this.ui.showToast('🗑️ ゴミ箱の方を向いて【Qキー】を押すと空箱を廃棄できます');
+        }
+        return;
+      }
+
+      if (!this.holdingBox) {
+        this.ui.showToast('🗑️ ゴミ箱です。空のダンボール箱を持った状態で【Qキー】を押すと廃棄できます。');
+        return;
+      }
+
+      if (this.holdingBox.isFixtureBox) {
+        soundManager.playError();
+        this.ui.showToast('⚠️ 備品箱は捨てられません！店内に配置してください。');
+        return;
+      }
+
+      if (this.holdingBox.count > 0) {
+        soundManager.playError();
+        this.ui.showToast(`⚠️ 『${this.holdingBox.itemName}』がまだ ${this.holdingBox.count}個 残っています！棚に陳列して空にしてから捨ててください。`);
+        return;
+      }
+
+      // 空箱を廃棄
+      soundManager.playTrash();
+      this.triggerHandAction();
+      this.holdingBox = null;
+      this.updateHandHoldingBox();
+      this.updateCrosshairPrompt();
+      this.ui.showToast('🗑️ 空のダンボール箱をゴミ箱に廃棄しました！');
+      if (typeof SaveManager !== 'undefined') {
+        SaveManager.save(this, false);
+      }
+    }
+
+    retrieveItemFromShelf(shelf) {
+      if (!this.holdingBox) return;
+
+      if (this.holdingBox.isFixtureBox) {
+        this.ui.showToast('備品箱には商品を回収できません');
+        return;
+      }
+
+      if (!this.holdingBox.isOpen) {
+        this.toggleBoxOpenClose();
+        this.ui.showToast('📦 箱を開封しました！もう一度右クリックで棚から回収できます');
+        return;
+      }
+
+      const boxCapacity = 12;
+      const currentCount = this.holdingBox.count || 0;
+      if (currentCount >= boxCapacity) {
+        this.ui.showToast(`ダンボール箱が満杯です！ (最大 ${boxCapacity}個)`);
+        return;
+      }
+
+      let preferredItemId = null;
+      if (currentCount > 0 && this.holdingBox.item) {
+        preferredItemId = this.holdingBox.item.id;
+      } else if (this.holdingBox.item) {
+        const hasSameItem = shelf.slots.some(s => s && s.itemId === this.holdingBox.item.id && s.count > 0);
+        if (hasSameItem) {
+          preferredItemId = this.holdingBox.item.id;
+        }
+      }
+
+      const itemMaster = shelf.takeItem(preferredItemId);
+      if (!itemMaster) {
+        if (preferredItemId && currentCount > 0) {
+          this.ui.showToast(`この棚には『${this.holdingBox.item.name}』の在庫がありません`);
+        } else {
+          this.ui.showToast('この棚には商品がありません');
+        }
+        return;
+      }
+
+      this.holdingBox.item = itemMaster;
+      this.holdingBox.itemName = itemMaster.name;
+      this.holdingBox.count = currentCount + 1;
+
+      if (this.multiplayer) {
+        const shelfIdx = this.store.shelves.indexOf(shelf);
+        this.multiplayer.broadcastShelfTakeItem(shelfIdx, itemMaster.id);
+      }
+
+      this.triggerHandAction();
+      this.updateHandHoldingBox();
+      this.updateCrosshairPrompt();
+      this.ui.showToast(`棚から『${itemMaster.name}』を1個回収しました (箱: ${this.holdingBox.count}/${boxCapacity}個)`);
+      if (typeof SaveManager !== 'undefined') {
+        SaveManager.save(this, false);
+      }
     }
 
     dropHoldingBox() {
@@ -6186,23 +7430,28 @@
       dropPos.x = THREE.MathUtils.clamp(dropPos.x, -12.0, 12.0);
       dropPos.z = THREE.MathUtils.clamp(dropPos.z, -11.5, 20.0);
 
+      const isBoxOpen = !!this.holdingBox.isOpen;
       if (this.holdingBox.isFixtureBox) {
         const boxMesh = createDeliveryBoxMesh({ isFixture: true, fixture: this.holdingBox.fixture });
+        boxMesh.userData.isOpen = isBoxOpen;
         this.store.placeBoxInDeliveryZone(boxMesh, dropPos);
         this.store.deliveryBoxes.push({
           isFixtureBox: true,
           fixture: this.holdingBox.fixture,
           mesh: boxMesh,
+          isOpen: isBoxOpen,
           itemName: `[備品] ${this.holdingBox.fixture.name}`
         });
       } else {
         const boxMesh = createDeliveryBoxMesh({ item: this.holdingBox.item, count: this.holdingBox.count });
+        boxMesh.userData.isOpen = isBoxOpen;
         this.store.placeBoxInDeliveryZone(boxMesh, dropPos);
         this.store.deliveryBoxes.push({
           isFixtureBox: false,
           item: this.holdingBox.item,
           count: this.holdingBox.count,
           mesh: boxMesh,
+          isOpen: isBoxOpen,
           itemName: this.holdingBox.item.name
         });
       }
@@ -6221,6 +7470,7 @@
         this.placementFixture = null;
       }
 
+      this.triggerHandAction();
       soundManager.playBox();
       this.ui.showPrompt('');
       SaveManager.save(this, false);
@@ -6234,13 +7484,14 @@
       if (this.store.register) interactables.push(this.store.register.mesh);
       this.store.shelves.forEach(s => interactables.push(s.mesh));
       this.store.deliveryBoxes.forEach(b => interactables.push(b.mesh));
+      if (this.store.trashBins) this.store.trashBins.forEach(tb => interactables.push(tb.mesh));
       if (this.officeDeskGroup) interactables.push(this.officeDeskGroup);
       if (this.openCloseSwitchGroup) interactables.push(this.openCloseSwitchGroup);
 
       const intersects = this.raycaster.intersectObjects(interactables, true);
       if (intersects.length > 0 && intersects[0].distance <= 3.6) {
         let hit = intersects[0].object;
-        while (hit.parent && !hit.userData.shelfInstance && !hit.userData.isRegister && hit.name !== 'delivery_box' && !hit.userData.isPC && !hit.userData.isOpenCloseSwitch) {
+        while (hit.parent && !hit.userData.shelfInstance && !hit.userData.isRegister && hit.name !== 'delivery_box' && !hit.userData.isPC && !hit.userData.isOpenCloseSwitch && !hit.userData.isTrashBin && !hit.userData.trashBinInstance) {
           hit = hit.parent;
         }
 
@@ -6248,21 +7499,41 @@
           const queueLen = this.store.registerQueue.length;
           this.ui.showPrompt(`[E] レジに入る (待機客: ${queueLen}人)`);
         } else if (hit.name === 'delivery_box') {
+          const status = hit.userData && hit.userData.isOpen ? ' (開封済)' : '';
           if (hit.userData && hit.userData.isFixtureBox) {
-            this.ui.showPrompt(`[E] ${hit.userData.itemName} を持ち上げて設置する`);
+            this.ui.showPrompt(`[E] ${hit.userData.itemName}${status} を持ち上げる`);
           } else {
-            this.ui.showPrompt(`[E] 箱を持つ (${hit.userData.itemName} x${hit.userData.count})`);
+            const count = hit.userData.count !== undefined ? hit.userData.count : 12;
+            if (count > 0) {
+              this.ui.showPrompt(`[E] 箱を持つ (${hit.userData.itemName} x${count}${status})`);
+            } else {
+              this.ui.showPrompt(`[E] 空のダンボール箱を持つ (${hit.userData.itemName || '商品用'}${status})`);
+            }
           }
         } else if (hit.userData && hit.userData.shelfInstance) {
           const shelf = hit.userData.shelfInstance;
           if (this.holdingBox) {
             if (this.holdingBox.isFixtureBox) {
               this.ui.showPrompt('[左クリック] ここに設置 / [R] 90度回転 / [右クリック] 箱を床に置く');
+            } else if (this.holdingBox.count <= 0) {
+              if (this.holdingBox.isOpen) {
+                this.ui.showPrompt(`[右クリック] 棚から商品を回収 / [左クリック] 箱を閉じる`);
+              } else {
+                this.ui.showPrompt(`[左クリック] 箱を開けて回収準備 / [右クリック] 箱を床に置く`);
+              }
+            } else if (this.holdingBox.isOpen) {
+              this.ui.showPrompt(`[左クリック] 『${this.holdingBox.item.name}』を1個陳列 (残り${this.holdingBox.count}個) / [右クリック] 棚から回収`);
             } else {
-              this.ui.showPrompt(`[左クリック] ${this.holdingBox.item.name} を陳列する`);
+              this.ui.showPrompt(`[左クリック] 箱を開けて陳列準備 / [右クリック] 箱を床に置く`);
             }
           } else {
-            this.ui.showPrompt(`[E] ${shelf.mesh.name === 'shelf_ambient' ? '商品棚(非デイリー)' : '冷蔵棚(デイリー)'} (在庫: ${shelf.getTotalItemCount()}/18)`);
+            let shelfDisplayName = '商品棚(非デイリー)';
+            if (shelf.type === 'drink_cooler' || (shelf.mesh && shelf.mesh.name === 'shelf_drink_cooler')) {
+              shelfDisplayName = 'ドリンク専用冷蔵庫';
+            } else if (shelf.type === 'chilled' || (shelf.mesh && shelf.mesh.name === 'shelf_chilled')) {
+              shelfDisplayName = '冷蔵棚(デイリー)';
+            }
+            this.ui.showPrompt(`[E] ${shelfDisplayName} (在庫: ${shelf.getTotalItemCount()}/18)`);
           }
         } else if (hit.userData && hit.userData.isPC) {
           this.ui.showPrompt('[E または TAB] 管理・発注PCを開く');
@@ -6272,14 +7543,188 @@
           } else {
             this.ui.showPrompt('▶ [E または 左クリック] 店舗を開店する (時間を進める)');
           }
+        } else if (hit.userData && (hit.userData.isTrashBin || hit.userData.trashBinInstance)) {
+          if (this.holdingBox) {
+            if (this.holdingBox.isFixtureBox) {
+              this.ui.showPrompt('⚠️ 未設置の備品箱は捨てられません');
+            } else if (this.holdingBox.count > 0) {
+              this.ui.showPrompt(`⚠️ [Q] 商品入りの箱は捨てられません (空にしてから廃棄)`);
+            } else {
+              this.ui.showPrompt(`🗑️ [Q] 空のダンボール箱をゴミ箱に捨てる`);
+            }
+          } else {
+            this.ui.showPrompt(`🗑️ ゴミ箱 (空のダンボール箱を持って [Q] で廃棄)`);
+          }
         }
       } else {
         if (!this.holdingBox) {
           this.ui.showPrompt('');
         } else if (this.holdingBox.isFixtureBox) {
-          this.ui.showPrompt('[左クリック] ここに設置 / [R] 90度回転 / [右クリック] 箱を床に置く');
+          if (this.holdingBox.isOpen) {
+            this.ui.showPrompt('[左クリック] 箱を閉じる / [R] 90度回転 / [右クリック] 床に置く');
+          } else {
+            this.ui.showPrompt('[左クリック] 箱を開ける / [R] 90度回転 / [右クリック] 床に置く');
+          }
         } else {
-          this.ui.showPrompt('[左クリック] 棚に補充 / [右クリック] 箱を床に置く');
+          if (this.holdingBox.count <= 0) {
+            if (this.holdingBox.isOpen) {
+              this.ui.showPrompt('[左クリック] 箱を閉じる (棚を狙って回収) / [右クリック] 箱を床に置く');
+            } else {
+              this.ui.showPrompt('[左クリック] 箱を開ける / [右クリック] 箱を床に置く');
+            }
+          } else {
+            if (this.holdingBox.isOpen) {
+              this.ui.showPrompt('[左クリック] 箱を閉じる (棚を狙って陳列) / [右クリック] 箱を床に置く');
+            } else {
+              this.ui.showPrompt('[左クリック] 箱を開ける / [右クリック] 箱を床に置く');
+            }
+          }
+        }
+      }
+    }
+
+    updateDayNightLighting() {
+      if (!this.ambientLight || !this.dirLight || !this.scene.fog || !this.scene.background) return;
+
+      const hour = this.store ? this.store.hour + (this.store.minute || 0) / 60.0 : 8.0;
+
+      if (!this._dayNightColors) {
+        this._dayNightColors = {
+          skyDay: new THREE.Color(0x7ec0ee),
+          skySunset: new THREE.Color(0xd35400),
+          skyDusk: new THREE.Color(0x111c30),
+          skyNight: new THREE.Color(0x050811),
+
+          fogDay: new THREE.Color(0xb8d5f2),
+          fogSunset: new THREE.Color(0xd98880),
+          fogDusk: new THREE.Color(0x111c30),
+          fogNight: new THREE.Color(0x050811),
+
+          sunDay: new THREE.Color(0xfffaed),
+          sunSunset: new THREE.Color(0xff7043),
+          moonNight: new THREE.Color(0x4a69bd),
+
+          ambientDay: new THREE.Color(0xffffff),
+          ambientSunset: new THREE.Color(0xf5b041),
+          ambientNight: new THREE.Color(0x566573),
+
+          tempSky: new THREE.Color(),
+          tempFog: new THREE.Color(),
+          tempSun: new THREE.Color(),
+          tempAmb: new THREE.Color()
+        };
+      }
+
+      const c = this._dayNightColors;
+      let skyCol, fogCol, sunCol, ambCol;
+      let sunIntensity, ambIntensity, streetIntensity, floodIntensity, poleIntensity, downlightIntensity;
+      let fogNear = 28, fogFar = 80;
+      let sunX = 5, sunY = 14, sunZ = 12;
+
+      if (hour >= 8.0 && hour < 16.0) {
+        // 【昼間】(8:00 - 16:00): 爽やかな青空・快晴の自然光
+        skyCol = c.skyDay;
+        fogCol = c.fogDay;
+        sunCol = c.sunDay;
+        ambCol = c.ambientDay;
+        sunIntensity = 0.85;
+        ambIntensity = 0.75;
+        streetIntensity = 0.0;
+        floodIntensity = 0.15;
+        poleIntensity = 0.4;
+        downlightIntensity = 0.4;
+        fogNear = 28;
+        fogFar = 80;
+        sunY = 14;
+      } else if (hour >= 16.0 && hour < 18.5) {
+        // 【夕方・夕焼け】(16:00 - 18:30): 鮮やかな茜色の夕景・徐々に街灯が点灯
+        const p = (hour - 16.0) / 2.5;
+        c.tempSky.lerpColors(c.skyDay, c.skySunset, p);
+        c.tempFog.lerpColors(c.fogDay, c.fogSunset, p);
+        c.tempSun.lerpColors(c.sunDay, c.sunSunset, p);
+        c.tempAmb.lerpColors(c.ambientDay, c.ambientSunset, p);
+        skyCol = c.tempSky;
+        fogCol = c.tempFog;
+        sunCol = c.tempSun;
+        ambCol = c.tempAmb;
+        sunIntensity = 0.85 - p * 0.45;
+        ambIntensity = 0.75 - p * 0.32;
+        streetIntensity = p * 0.8;
+        floodIntensity = 0.15 + p * 0.45;
+        poleIntensity = 0.4 + p * 0.5;
+        downlightIntensity = 0.4 + p * 0.3;
+        fogNear = 28 - p * 4;
+        fogFar = 80 - p * 12;
+        sunY = 14 - p * 8;
+      } else if (hour >= 18.5 && hour < 20.0) {
+        // 【薄暮・黄昏】(18:30 - 20:00): 夕焼けから濃紺の夜空へ
+        const p = (hour - 18.5) / 1.5;
+        c.tempSky.lerpColors(c.skySunset, c.skyDusk, p);
+        c.tempFog.lerpColors(c.fogSunset, c.fogDusk, p);
+        c.tempSun.lerpColors(c.sunSunset, c.moonNight, p);
+        c.tempAmb.lerpColors(c.ambientSunset, c.ambientNight, p);
+        skyCol = c.tempSky;
+        fogCol = c.tempFog;
+        sunCol = c.tempSun;
+        ambCol = c.tempAmb;
+        sunIntensity = 0.40 - p * 0.32;
+        ambIntensity = 0.43 - p * 0.20;
+        streetIntensity = 0.8 + p * 0.4;
+        floodIntensity = 0.6 + p * 0.25;
+        poleIntensity = 0.9 + p * 0.2;
+        downlightIntensity = 0.7;
+        fogNear = 24 - p * 3;
+        fogFar = 68 - p * 8;
+        sunY = 6 + p * 4;
+        sunX = 5 - p * 9;
+      } else {
+        // 【夜間・深夜】(20:00 - 24:00 / 0:00 - 8:00): 漆黒の夜空・月光・街路灯と店内の温かい明かり
+        skyCol = c.skyNight;
+        fogCol = c.fogNight;
+        sunCol = c.moonNight;
+        ambCol = c.ambientNight;
+        sunIntensity = 0.06;
+        ambIntensity = 0.20;
+        streetIntensity = 1.2;
+        floodIntensity = 0.85;
+        poleIntensity = 1.1;
+        downlightIntensity = 0.7;
+        fogNear = 20;
+        fogFar = 60;
+        sunX = -4;
+        sunY = 11;
+        sunZ = 8;
+      }
+
+      this.scene.background.copy(skyCol);
+      this.scene.fog.color.copy(fogCol);
+      this.scene.fog.near = fogNear;
+      this.scene.fog.far = fogFar;
+
+      this.dirLight.color.copy(sunCol);
+      this.dirLight.intensity = sunIntensity;
+      this.dirLight.position.set(sunX, sunY, sunZ);
+
+      this.ambientLight.color.copy(ambCol);
+      this.ambientLight.intensity = ambIntensity;
+
+      if (this.streetLights && this.streetLights.length > 0) {
+        for (let i = 0; i < this.streetLights.length; i++) {
+          this.streetLights[i].intensity = streetIntensity;
+        }
+      }
+
+      if (this.deliveryFloodLight) {
+        this.deliveryFloodLight.intensity = floodIntensity;
+      }
+
+      if (this.poleLight) {
+        this.poleLight.intensity = poleIntensity;
+      }
+
+      if (this.storefrontDownlights && this.storefrontDownlights.length > 0) {
+        for (let i = 0; i < this.storefrontDownlights.length; i++) {
+          this.storefrontDownlights[i].intensity = downlightIntensity;
         }
       }
     }
@@ -6289,6 +7734,7 @@
       const delta = Math.min(this.clock.getDelta(), 0.1);
 
       if (!this.isGameActive) {
+        this.updateDayNightLighting();
         // タイトル画面表示中: 店舗前でのパノラマ演出
         this.titleAnimTime = (this.titleAnimTime || 0) + delta * 0.25;
         const camX = Math.sin(this.titleAnimTime) * 1.8;
@@ -6308,6 +7754,7 @@
       this.updatePlayerMovement(delta);
       this.store.update(delta);
       this.customerManager.update(delta, this.store);
+      this.updateDayNightLighting();
 
       if (this.multiplayer) {
         this.multiplayer.update(delta);
@@ -6320,6 +7767,7 @@
       }
 
       this.ui.update();
+      this.updatePlayerHands(delta);
       this.renderer.render(this.scene, this.camera);
     }
 
@@ -6336,13 +7784,18 @@
     }
 
     updatePlayerMovement(delta) {
-      if (!this.isPointerLocked || this.isAnyModalOpen()) return;
+      if (!this.isPointerLocked || this.isAnyModalOpen()) {
+        this.isPlayerMoving = false;
+        return;
+      }
 
       const moveVector = new THREE.Vector3();
       if (this.keys['KeyW']) moveVector.z -= 1;
       if (this.keys['KeyS']) moveVector.z += 1;
       if (this.keys['KeyA']) moveVector.x -= 1;
       if (this.keys['KeyD']) moveVector.x += 1;
+
+      this.isPlayerMoving = (moveVector.lengthSq() > 0);
 
       if (moveVector.lengthSq() > 0) {
         moveVector.normalize();
@@ -6391,6 +7844,574 @@
         this.camera.position.z = nextZ;
         this.camera.position.y = 1.65;
       }
+    }
+
+    // ==========================================
+    // プレイヤー一人称手元 (FPS Viewmodel / Hands)
+    // ==========================================
+    setupPlayerHands() {
+      // カメラをシーンに追加 (カメラの子オブジェクト描画用)
+      this.scene.add(this.camera);
+
+      this.handRoot = new THREE.Group();
+      this.handRoot.visible = false;
+      this.camera.add(this.handRoot);
+
+      // 制服マテリアル (緑色ポロシャツ・エプロン風)
+      const uniformMat = new THREE.MeshLambertMaterial({
+        color: 0x27ae60,
+        roughness: 0.6
+      });
+      // 制服の白い袖口トリム
+      const cuffMat = new THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        roughness: 0.5
+      });
+      // 手・指の肌色マテリアル
+      const skinMat = new THREE.MeshLambertMaterial({
+        color: 0xffdfc4,
+        roughness: 0.8
+      });
+
+      // --- 左腕グループ ---
+      this.leftArmGroup = new THREE.Group();
+      
+      // 袖 (前腕上部)
+      const sleeveGeo = new THREE.BoxGeometry(0.065, 0.065, 0.20);
+      const leftSleeve = new THREE.Mesh(sleeveGeo, uniformMat);
+      leftSleeve.position.set(0, 0, 0.10);
+      leftSleeve.rotation.x = 0.15;
+      this.leftArmGroup.add(leftSleeve);
+
+      // 袖口トリム
+      const cuffGeo = new THREE.BoxGeometry(0.067, 0.067, 0.015);
+      const leftCuff = new THREE.Mesh(cuffGeo, cuffMat);
+      leftCuff.position.set(0, -0.002, 0.005);
+      leftCuff.rotation.x = 0.15;
+      this.leftArmGroup.add(leftCuff);
+
+      // 手首
+      const wristGeo = new THREE.BoxGeometry(0.052, 0.052, 0.06);
+      const leftWrist = new THREE.Mesh(wristGeo, skinMat);
+      leftWrist.position.set(0, -0.012, -0.025);
+      this.leftArmGroup.add(leftWrist);
+
+      // 手のひら
+      const handGeo = new THREE.BoxGeometry(0.058, 0.034, 0.075);
+      const leftHand = new THREE.Mesh(handGeo, skinMat);
+      leftHand.position.set(0, -0.018, -0.08);
+      this.leftArmGroup.add(leftHand);
+
+      // 親指
+      const thumbGeo = new THREE.BoxGeometry(0.024, 0.024, 0.045);
+      const leftThumb = new THREE.Mesh(thumbGeo, skinMat);
+      leftThumb.position.set(0.034, -0.008, -0.07);
+      leftThumb.rotation.set(-0.1, -0.35, 0.2);
+      this.leftArmGroup.add(leftThumb);
+
+      // 指先 (軽く内側に曲げた構え)
+      const fingersGeo = new THREE.BoxGeometry(0.054, 0.026, 0.045);
+      const leftFingers = new THREE.Mesh(fingersGeo, skinMat);
+      leftFingers.position.set(0, -0.024, -0.12);
+      leftFingers.rotation.x = -0.3;
+      this.leftArmGroup.add(leftFingers);
+
+      this.handRoot.add(this.leftArmGroup);
+
+      // --- 右腕グループ (対称) ---
+      this.rightArmGroup = new THREE.Group();
+
+      const rightSleeve = new THREE.Mesh(sleeveGeo, uniformMat);
+      rightSleeve.position.set(0, 0, 0.10);
+      rightSleeve.rotation.x = 0.15;
+      this.rightArmGroup.add(rightSleeve);
+
+      const rightCuff = new THREE.Mesh(cuffGeo, cuffMat);
+      rightCuff.position.set(0, -0.002, 0.005);
+      rightCuff.rotation.x = 0.15;
+      this.rightArmGroup.add(rightCuff);
+
+      const rightWrist = new THREE.Mesh(wristGeo, skinMat);
+      rightWrist.position.set(0, -0.012, -0.025);
+      this.rightArmGroup.add(rightWrist);
+
+      const rightHand = new THREE.Mesh(handGeo, skinMat);
+      rightHand.position.set(0, -0.018, -0.08);
+      this.rightArmGroup.add(rightHand);
+
+      const rightThumb = new THREE.Mesh(thumbGeo, skinMat);
+      rightThumb.position.set(-0.034, -0.008, -0.07);
+      rightThumb.rotation.set(-0.1, 0.35, -0.2);
+      this.rightArmGroup.add(rightThumb);
+
+      const rightFingers = new THREE.Mesh(fingersGeo, skinMat);
+      rightFingers.position.set(0, -0.024, -0.12);
+      rightFingers.rotation.x = -0.3;
+      this.rightArmGroup.add(rightFingers);
+
+      this.handRoot.add(this.rightArmGroup);
+
+      // --- 手持ちダンボール箱グループ ---
+      // --- 手持ちダンボール箱グループ (リアル開閉フラップ付き) ---
+      this.handBoxGroup = new THREE.Group();
+      this.handBoxGroup.visible = false;
+
+      const boxMat = new THREE.MeshLambertMaterial({ color: 0xc89d6c });
+      this.handBoxMat = boxMat;
+
+      // 1. 箱本体胴体 (上部開放型・プレイヤー視点で見やすい高さ)
+      this.handBoxMesh = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.24), boxMat);
+      this.handBoxMesh.position.y = -0.01;
+      this.handBoxGroup.add(this.handBoxMesh);
+
+      // 箱の内側底面 (影の落ちた暗めのダンボール面)
+      const insideFloorMat = new THREE.MeshLambertMaterial({ color: 0x6e4e2a });
+      const insideFloor = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.22), insideFloorMat);
+      insideFloor.rotation.x = -Math.PI / 2;
+      insideFloor.position.y = 0.065;
+      this.handBoxGroup.add(insideFloor);
+
+      // 2. 開閉フラップ (視界を遮らない横方向・左右観音開きの2枚羽)
+      // 左フラップ (ピボット軸: 左上端)
+      this.leftFlapPivot = new THREE.Group();
+      this.leftFlapPivot.position.set(-0.15, 0.07, 0);
+      const leftFlapMesh = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.007, 0.238), boxMat);
+      leftFlapMesh.position.set(0.075, 0, 0);
+      this.leftFlapPivot.add(leftFlapMesh);
+      this.handBoxGroup.add(this.leftFlapPivot);
+
+      // 右フラップ (ピボット軸: 右上端)
+      this.rightFlapPivot = new THREE.Group();
+      this.rightFlapPivot.position.set(0.15, 0.07, 0);
+      const rightFlapMesh = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.007, 0.238), boxMat);
+      rightFlapMesh.position.set(-0.075, 0, 0);
+      this.rightFlapPivot.add(rightFlapMesh);
+      this.handBoxGroup.add(this.rightFlapPivot);
+
+      // フラップメッシュの参照配列 (色替え用: 左右2枚のみ)
+      this.handBoxFlapMeshes = [leftFlapMesh, rightFlapMesh];
+
+      // 3. テープ (上面中央の合わせ目 - 閉じている時のみ表示)
+      const tapeMat = new THREE.MeshLambertMaterial({ color: 0x935116 });
+      this.handBoxTapeMat = tapeMat;
+      this.handBoxTape = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.012, 0.242), tapeMat);
+      this.handBoxTape.position.set(0, 0.076, 0);
+      this.handBoxGroup.add(this.handBoxTape);
+
+      // 備品用の十字テープ
+      this.handBoxTapeCross = new THREE.Mesh(new THREE.BoxGeometry(0.302, 0.012, 0.045), tapeMat);
+      this.handBoxTapeCross.position.set(0, 0.076, 0);
+      this.handBoxTapeCross.visible = false;
+      this.handBoxGroup.add(this.handBoxTapeCross);
+
+      // 4. 箱の中身コンテナ (開いたときに見える商品群)
+      this.handBoxInsideGroup = new THREE.Group();
+      this.handBoxInsideGroup.position.set(0, 0.065, 0);
+      this.handBoxInsideGroup.visible = false;
+      this.handBoxGroup.add(this.handBoxInsideGroup);
+
+      // 5. 箱の正面ラベル (商品名や数量を表示)
+      const labelMat = new THREE.MeshBasicMaterial({ transparent: true });
+      this.handBoxLabel = new THREE.Mesh(new THREE.PlaneGeometry(0.20, 0.12), labelMat);
+      this.handBoxLabel.position.set(0, -0.01, 0.121);
+      this.handBoxGroup.add(this.handBoxLabel);
+
+      this.handRoot.add(this.handBoxGroup);
+
+      // アニメーションステート
+      this.handAnim = {
+        idleTime: 0,
+        walkTime: 0,
+        actionProgress: 0,
+        boxOpenProgress: 0.0,
+        swayX: 0,
+        swayY: 0,
+        targetSwayX: 0,
+        targetSwayY: 0,
+        currentHoldingKey: null
+      };
+
+      // 手元モデルを前景に安定描画
+      this.handRoot.traverse(obj => {
+        if (obj.isMesh) {
+          obj.renderOrder = 999;
+          if (obj.material) {
+            obj.material.depthTest = true;
+          }
+        }
+      });
+    }
+
+    triggerHandAction() {
+      if (this.handAnim) {
+        this.handAnim.actionProgress = 1.0;
+      }
+    }
+
+    updatePlayerHands(delta) {
+      if (!this.handRoot) return;
+
+      // タイトル画面やモーダル表示中（レジ会計中、PC操作中等）は非表示
+      if (!this.isGameActive || this.isAnyModalOpen()) {
+        this.handRoot.visible = false;
+        return;
+      }
+
+      this.handRoot.visible = true;
+
+      // 1. 手持ち箱のテクスチャ・表示更新
+      this.updateHandHoldingBox();
+
+      const hasBox = !!this.holdingBox;
+
+      // 2. 目標ポーズの設定
+      const targetLeftPos = new THREE.Vector3();
+      const targetLeftRot = new THREE.Euler();
+      const targetRightPos = new THREE.Vector3();
+      const targetRightRot = new THREE.Euler();
+
+      const isOpen = this.holdingBox && this.holdingBox.isOpen;
+      // プレイヤーの視点に対して、中身がハッキリ見下ろせるように手前に傾ける (チルト)
+      const targetBoxPos = new THREE.Vector3(
+        0,
+        isOpen ? -0.165 : -0.16,
+        isOpen ? -0.285 : -0.31
+      );
+      const targetBoxRot = new THREE.Euler(
+        isOpen ? 0.46 : 0.18, // 開いている時は約26度手前に傾けて中身を真正面に覗き込める
+        0,
+        0
+      );
+
+      if (hasBox) {
+        // ダンボール箱を両手で抱えるポーズ (箱のチルトに合わせて手を自然に添える)
+        const tilt = isOpen ? 0.36 : 0.18;
+        targetLeftPos.set(-0.165, -0.16, isOpen ? -0.28 : -0.30);
+        targetLeftRot.set(tilt, 0.68, 0.22);
+
+        targetRightPos.set(0.165, -0.16, isOpen ? -0.28 : -0.30);
+        targetRightRot.set(tilt, -0.68, -0.22);
+      } else {
+        // 手ぶら時のリラックスした構え (画面下部に自然に手元が見える)
+        targetLeftPos.set(-0.17, -0.18, -0.28);
+        targetLeftRot.set(-0.32, 0.30, 0.12);
+
+        targetRightPos.set(0.17, -0.18, -0.28);
+        targetRightRot.set(-0.32, -0.30, -0.12);
+      }
+
+      // 3. ボビング (歩行・呼吸の揺れ)
+      const offset = new THREE.Vector3();
+      if (this.isPlayerMoving) {
+        this.handAnim.walkTime += delta * 8.5;
+        const bobX = Math.cos(this.handAnim.walkTime * 0.5) * 0.012;
+        const bobY = Math.abs(Math.sin(this.handAnim.walkTime)) * 0.010;
+        offset.x += bobX;
+        offset.y += bobY;
+        offset.z += Math.sin(this.handAnim.walkTime * 0.5) * 0.005;
+      } else {
+        this.handAnim.idleTime += delta * 2.0;
+        offset.y += Math.sin(this.handAnim.idleTime) * 0.003;
+        offset.x += Math.cos(this.handAnim.idleTime * 0.5) * 0.002;
+      }
+
+      // 4. マウス視点回転のスウェイ (慣性)
+      this.handAnim.swayX = THREE.MathUtils.lerp(this.handAnim.swayX, this.handAnim.targetSwayX, Math.min(1, delta * 12));
+      this.handAnim.swayY = THREE.MathUtils.lerp(this.handAnim.swayY, this.handAnim.targetSwayY, Math.min(1, delta * 12));
+      this.handAnim.targetSwayX = THREE.MathUtils.lerp(this.handAnim.targetSwayX, 0, Math.min(1, delta * 6));
+      this.handAnim.targetSwayY = THREE.MathUtils.lerp(this.handAnim.targetSwayY, 0, Math.min(1, delta * 6));
+
+      offset.x += this.handAnim.swayX;
+      offset.y += this.handAnim.swayY;
+
+      // 5. アクションアニメーション (クリックや陳列時の押し出し)
+      if (this.handAnim.actionProgress > 0) {
+        this.handAnim.actionProgress -= delta * 4.5;
+        const p = Math.sin(Math.max(0, this.handAnim.actionProgress) * Math.PI);
+        offset.z -= p * 0.045;
+        offset.y += p * 0.012;
+        if (!hasBox) {
+          // 素手の時は右手が前方にスイングリーチ
+          targetRightPos.z -= p * 0.06;
+          targetRightPos.y += p * 0.015;
+          targetRightRot.x -= p * 0.3;
+        }
+      }
+
+      // ルートオフセットの適用
+      this.handRoot.position.set(offset.x, offset.y, offset.z);
+
+      // スムーズな補間 (Lerp)
+      const lerpSpeed = Math.min(1, delta * 14);
+      this.leftArmGroup.position.lerp(targetLeftPos, lerpSpeed);
+      this.leftArmGroup.rotation.x = THREE.MathUtils.lerp(this.leftArmGroup.rotation.x, targetLeftRot.x, lerpSpeed);
+      this.leftArmGroup.rotation.y = THREE.MathUtils.lerp(this.leftArmGroup.rotation.y, targetLeftRot.y, lerpSpeed);
+      this.leftArmGroup.rotation.z = THREE.MathUtils.lerp(this.leftArmGroup.rotation.z, targetLeftRot.z, lerpSpeed);
+
+      this.rightArmGroup.position.lerp(targetRightPos, lerpSpeed);
+      this.rightArmGroup.rotation.x = THREE.MathUtils.lerp(this.rightArmGroup.rotation.x, targetRightRot.x, lerpSpeed);
+      this.rightArmGroup.rotation.y = THREE.MathUtils.lerp(this.rightArmGroup.rotation.y, targetRightRot.y, lerpSpeed);
+      this.rightArmGroup.rotation.z = THREE.MathUtils.lerp(this.rightArmGroup.rotation.z, targetRightRot.z, lerpSpeed);
+
+      if (hasBox) {
+        this.handBoxGroup.position.lerp(targetBoxPos, lerpSpeed);
+        this.handBoxGroup.rotation.x = THREE.MathUtils.lerp(this.handBoxGroup.rotation.x, targetBoxRot.x, lerpSpeed);
+
+        // ダンボール箱の開閉アニメーション (delta * 10 で約0.15秒の滑らかなパカパカ開閉)
+        const targetOpen = (this.holdingBox && this.holdingBox.isOpen) ? 1.0 : 0.0;
+        this.handAnim.boxOpenProgress = THREE.MathUtils.lerp(
+          this.handAnim.boxOpenProgress || 0,
+          targetOpen,
+          Math.min(1.0, delta * 10)
+        );
+        const openP = this.handAnim.boxOpenProgress;
+
+        // フラップの開閉角度 (横方向・左右にのみ外側下向きに約135度パカッと開く)
+        if (this.leftFlapPivot) this.leftFlapPivot.rotation.z = openP * 2.35;
+        if (this.rightFlapPivot) this.rightFlapPivot.rotation.z = -openP * 2.35;
+
+        // テープ表示 (閉じている時のみ)
+        if (this.handBoxTape) {
+          this.handBoxTape.visible = (openP < 0.25);
+        }
+        if (this.handBoxTapeCross) {
+          this.handBoxTapeCross.visible = (openP < 0.25 && !!this.holdingBox.isFixtureBox);
+        }
+
+        // 内部商品表示 (少しでも開いていれば可視化)
+        if (this.handBoxInsideGroup) {
+          this.handBoxInsideGroup.visible = (openP > 0.03);
+        }
+      }
+    }
+
+    updateHandHoldingBox() {
+      if (!this.holdingBox) {
+        this.handBoxGroup.visible = false;
+        this.handAnim.currentHoldingKey = null;
+        if (this.handBoxInsideGroup) {
+          this.handBoxInsideGroup.visible = false;
+        }
+        return;
+      }
+
+      this.handBoxGroup.visible = true;
+      let key = '';
+      let labelText = '';
+      const isFixture = !!this.holdingBox.isFixtureBox;
+      const isOpen = !!this.holdingBox.isOpen;
+      const statusText = isOpen ? '【開封済】' : '【未開封】';
+
+      if (isFixture && this.holdingBox.fixture) {
+        const fixture = this.holdingBox.fixture;
+        key = `fixture_${fixture.id}_${isOpen}`;
+        labelText = `📦 備品ダンボール\n${fixture.name} ${statusText}`;
+        const boxColor = 0xba8c59;
+        this.handBoxMesh.material.color.setHex(boxColor);
+        if (this.handBoxFlapMeshes) {
+          this.handBoxFlapMeshes.forEach(mesh => mesh.material.color.setHex(boxColor));
+        }
+        this.handBoxTape.material.color.setHex(0x6e2c00);
+        this.handBoxTapeCross.visible = (!isOpen);
+        this.handBoxTapeCross.material.color.setHex(0x6e2c00);
+        this.handBoxMesh.scale.set(1.15, 1.15, 1.15);
+      } else if (this.holdingBox.item) {
+        const item = this.holdingBox.item;
+        const count = this.holdingBox.count || 0;
+        key = `item_${item.id}_${count}_${isOpen}`;
+        labelText = count > 0
+          ? `${item.name}\n残 ${count}個 ${statusText}`
+          : `📦 空のダンボール箱\n(${item.name}) ${statusText}`;
+        const boxColor = 0xc89d6c;
+        this.handBoxMesh.material.color.setHex(boxColor);
+        if (this.handBoxFlapMeshes) {
+          this.handBoxFlapMeshes.forEach(mesh => mesh.material.color.setHex(boxColor));
+        }
+        this.handBoxTape.material.color.setHex(0x935116);
+        this.handBoxTapeCross.visible = false;
+        this.handBoxMesh.scale.set(1.0, 1.0, 1.0);
+      } else {
+        key = `empty_box_${isOpen}`;
+        labelText = `📦 空のダンボール箱\n${statusText}`;
+        const boxColor = 0xc89d6c;
+        this.handBoxMesh.material.color.setHex(boxColor);
+        if (this.handBoxFlapMeshes) {
+          this.handBoxFlapMeshes.forEach(mesh => mesh.material.color.setHex(boxColor));
+        }
+        this.handBoxTape.material.color.setHex(0x935116);
+        this.handBoxTapeCross.visible = false;
+        this.handBoxMesh.scale.set(1.0, 1.0, 1.0);
+      }
+
+      // 箱の中身ミニチュアアイテムの生成・更新
+      this.updateHandBoxInside(this.holdingBox.item, this.holdingBox.count, isFixture);
+
+      if (this.handAnim.currentHoldingKey !== key) {
+        this.handAnim.currentHoldingKey = key;
+        const labelTexture = createLabelTexture(
+          labelText,
+          isFixture ? '#ba8c59' : '#e5cbb0',
+          '#22150c',
+          256,
+          128
+        );
+        this.handBoxLabel.material.map = labelTexture;
+        this.handBoxLabel.material.needsUpdate = true;
+      }
+    }
+
+    updateHandBoxInside(item, count, isFixture) {
+      if (!this.handBoxInsideGroup) return;
+
+      const insideKey = isFixture ? `fixture_${this.holdingBox?.fixture?.id}` : `${item?.id}_${count}`;
+      if (this.handBoxInsideGroup.userData.lastKey === insideKey) return;
+      this.handBoxInsideGroup.userData.lastKey = insideKey;
+
+      while (this.handBoxInsideGroup.children.length > 0) {
+        const child = this.handBoxInsideGroup.children[0];
+        if (child.geometry) child.geometry.dispose();
+        this.handBoxInsideGroup.remove(child);
+      }
+
+      if (isFixture) {
+        const partMat = new THREE.MeshLambertMaterial({ color: 0x95a5a6, roughness: 0.3 });
+        const foamMat = new THREE.MeshLambertMaterial({ color: 0xf5f5f5, roughness: 0.9 });
+
+        const foam = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.03, 0.20), foamMat);
+        foam.position.y = -0.04;
+        this.handBoxInsideGroup.add(foam);
+
+        const frame1 = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.04, 0.05), partMat);
+        frame1.position.set(0, 0.01, -0.04);
+        const frame2 = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.04, 0.05), partMat);
+        frame2.position.set(0, 0.01, 0.04);
+        this.handBoxInsideGroup.add(frame1, frame2);
+        return;
+      }
+
+      if (!item || count <= 0) return;
+
+      const maxSlots = 8;
+      const visibleCount = Math.min(count, maxSlots);
+      const rows = 2;
+      const cols = 4;
+      const spacingX = 0.06;
+      const spacingZ = 0.07;
+      const startX = -((cols - 1) * spacingX) / 2;
+      const startZ = -((rows - 1) * spacingZ) / 2;
+
+      const itemColor = item.color ? parseInt(item.color.replace('#', '0x')) : 0xe67e22;
+      const itemMat = new THREE.MeshLambertMaterial({ color: itemColor, roughness: 0.6 });
+
+      let slotIndex = 0;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (slotIndex >= visibleCount) break;
+
+          const posX = startX + c * spacingX;
+          const posZ = startZ + r * spacingZ;
+
+          const itemGroup = new THREE.Group();
+          itemGroup.position.set(posX, 0.025, posZ);
+
+          if (item.modelType === 'onigiri') {
+            const riceGeo = new THREE.CylinderGeometry(0.015, 0.025, 0.052, 3);
+            const riceMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const rice = new THREE.Mesh(riceGeo, riceMat);
+            rice.rotation.y = Math.PI / 6;
+            itemGroup.add(rice);
+
+            const noriGeo = new THREE.BoxGeometry(0.028, 0.026, 0.042);
+            const noriMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+            const nori = new THREE.Mesh(noriGeo, noriMat);
+            nori.position.y = -0.01;
+            itemGroup.add(nori);
+
+            const tagGeo = new THREE.BoxGeometry(0.014, 0.014, 0.044);
+            const tag = new THREE.Mesh(tagGeo, itemMat);
+            tag.position.y = 0.012;
+            itemGroup.add(tag);
+          } else if (item.modelType === 'drink') {
+            const bottleGeo = new THREE.CylinderGeometry(0.020, 0.020, 0.075, 8);
+            const bottle = new THREE.Mesh(bottleGeo, itemMat);
+            itemGroup.add(bottle);
+
+            const capGeo = new THREE.CylinderGeometry(0.011, 0.011, 0.016, 8);
+            const capMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const cap = new THREE.Mesh(capGeo, capMat);
+            cap.position.y = 0.045;
+            itemGroup.add(cap);
+          } else if (item.modelType === 'bento') {
+            const bentoGeo = new THREE.BoxGeometry(0.062, 0.028, 0.072);
+            const bento = new THREE.Mesh(bentoGeo, itemMat);
+            itemGroup.add(bento);
+            const bandGeo = new THREE.BoxGeometry(0.064, 0.030, 0.020);
+            const bandMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const band = new THREE.Mesh(bandGeo, bandMat);
+            itemGroup.add(band);
+          } else if (item.modelType === 'bread') {
+            const breadGeo = new THREE.BoxGeometry(0.052, 0.040, 0.062);
+            const bread = new THREE.Mesh(breadGeo, itemMat);
+            itemGroup.add(bread);
+          } else {
+            const snackGeo = new THREE.BoxGeometry(0.054, 0.062, 0.035);
+            const snack = new THREE.Mesh(snackGeo, itemMat);
+            itemGroup.add(snack);
+          }
+
+          this.handBoxInsideGroup.add(itemGroup);
+          slotIndex++;
+        }
+      }
+    }
+
+    toggleBoxOpenClose() {
+      if (!this.holdingBox) return false;
+
+      this.holdingBox.isOpen = !this.holdingBox.isOpen;
+
+      if (this.holdingBox.isOpen) {
+        soundManager.playBoxOpen();
+        this.ui.showToast(`📦 箱を開けました (${this.holdingBox.itemName})`);
+      } else {
+        soundManager.playBoxClose();
+        this.ui.showToast(`📦 箱を閉じました (${this.holdingBox.itemName})`);
+      }
+
+      this.triggerHandAction();
+      this.updateHandHoldingBox();
+      this.updateCrosshairPrompt();
+      return true;
+    }
+
+    checkShelfInFront() {
+      if (!this.raycaster || !this.camera || !this.store || !this.store.shelves) return null;
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const shelfMeshes = this.store.shelves.map(s => s.mesh);
+      const intersects = this.raycaster.intersectObjects(shelfMeshes, true);
+      if (intersects.length > 0 && intersects[0].distance <= 3.6) {
+        let hitObj = intersects[0].object;
+        while (hitObj.parent && !hitObj.userData.shelfInstance) {
+          hitObj = hitObj.parent;
+        }
+        return hitObj.userData.shelfInstance || null;
+      }
+      return null;
+    }
+
+    checkTrashBinInFront() {
+      if (!this.raycaster || !this.camera || !this.store || !this.store.trashBins || this.store.trashBins.length === 0) return null;
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const binMeshes = this.store.trashBins.map(tb => tb.mesh);
+      const intersects = this.raycaster.intersectObjects(binMeshes, true);
+      if (intersects.length > 0 && intersects[0].distance <= 3.6) {
+        let hitObj = intersects[0].object;
+        while (hitObj.parent && !hitObj.userData.trashBinInstance && !hitObj.userData.isTrashBin) {
+          hitObj = hitObj.parent;
+        }
+        return hitObj.userData.trashBinInstance || (hitObj.userData.isTrashBin ? hitObj : null);
+      }
+      return null;
     }
   }
 

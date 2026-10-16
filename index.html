@@ -61,7 +61,8 @@
     <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動</span>
     <span><kbd>マウス</kbd> 視点移動 (クリックで固定)</span>
     <span><kbd>E</kbd> / <kbd>左クリック</kbd> インタラクト・陳列</span>
-    <span><kbd>右クリック</kbd> 箱を置く / 配置キャンセル</span>
+    <span><kbd>右クリック</kbd> 箱を置く / 商品回収</span>
+    <span><kbd>Q</kbd> 空箱をゴミ箱へ廃棄</span>
     <span><kbd>TAB</kbd> 発注・管理PC</span>
     <span><kbd>O</kbd> 開店/閉店</span>
     <span><kbd>R</kbd> 棚・レジを回転</span>
@@ -195,41 +196,88 @@
 
       <!-- カテゴリタブ -->
       <div class="pc-tabs">
-        <button class="tab-btn active" data-tab="tab-fixtures">🛠️ 什器・店舗備品 (棚・レジ)</button>
-        <button class="tab-btn" data-tab="tab-daily">🍙 デイリー商品 (米飯・パン / 冷蔵)</button>
-        <button class="tab-btn" data-tab="tab-nondaily">🍫 非デイリー商品 (菓子・飲料 / 常温)</button>
-        <button class="tab-btn" data-tab="tab-staff">👔 スタッフ雇用 (店員配置)</button>
+        <button class="tab-btn active" data-tab="tab-fixtures">
+          <span class="tab-btn-icon">🛠️</span>
+          <span class="tab-btn-title">什器・備品</span>
+          <span class="tab-btn-desc">棚 / レジ / 冷蔵庫</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-licenses">
+          <span class="tab-btn-icon">📜</span>
+          <span class="tab-btn-title">商品ライセンス</span>
+          <span class="tab-btn-desc">カテゴリ販売許可</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-daily">
+          <span class="tab-btn-icon">🍙</span>
+          <span class="tab-btn-title">デイリー商品</span>
+          <span class="tab-btn-desc">米飯・パン / 冷蔵</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-nondaily">
+          <span class="tab-btn-icon">🍫</span>
+          <span class="tab-btn-title">非デイリー商品</span>
+          <span class="tab-btn-desc">菓子・飲料 / 常温</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-staff">
+          <span class="tab-btn-icon">👔</span>
+          <span class="tab-btn-title">スタッフ雇用</span>
+          <span class="tab-btn-desc">アルバイト配置</span>
+        </button>
       </div>
 
       <div class="pc-content">
         <!-- 備品タブ -->
         <div id="tab-fixtures" class="tab-pane active">
-          <div class="catalog-notice">
-            ※最初は店内に棚もレジもありません。購入した備品（棚・レジカウンター）は<b>バックヤード奥の勝手口から出た屋外の「配達受取エリア」</b>に届きます。<kbd>E</kbd> で持ち運び、売場に自由に配置してください。
+          <div class="catalog-notice fixture-notice">
+            <span class="notice-icon">🛠️</span>
+            <div>
+              <b>店舗備品の発注・配置:</b> 購入した什器（棚・レジ・ゴミ箱・ドリンク冷蔵庫）は<b>裏の勝手口を出た屋外配達エリア</b>に届きます。<kbd>E</kbd> で持ち運び、店内で <kbd>R</kbd> 回転しながら配置してください。
+            </div>
           </div>
           <div id="pc-fixture-list" class="catalog-grid"></div>
+        </div>
+
+        <!-- ライセンスタブ -->
+        <div id="tab-licenses" class="tab-pane">
+          <div id="pc-license-summary" class="license-summary-panel"></div>
+          <div class="catalog-notice license-notice">
+            <span class="notice-icon">📜</span>
+            <div>
+              <b>商品ライセンス制度:</b> カテゴリごとの販売ライセンスを取得すると、該当ジャンルの全商品が一括で発注可能になります。各商品タブからも直接取得できます。
+            </div>
+          </div>
+          <div id="pc-license-list" class="catalog-grid"></div>
         </div>
 
         <!-- デイリータブ -->
         <div id="tab-daily" class="tab-pane">
           <div class="catalog-notice daily-notice">
-            ❄️ <b>デイリー専用商品</b> (米飯・パン): 要冷蔵のため、必ず<b>「冷蔵棚(デイリー専用)」</b>にのみ陳列できます。
+            <span class="notice-icon">❄️</span>
+            <div>
+              <b>要冷蔵デイリー商品 (米飯・パン):</b> 必ず<b>「冷蔵棚(デイリー専用)」</b>にのみ陳列できます。発注には対応ライセンスが必要です。
+            </div>
           </div>
-          <div id="pc-daily-list" class="catalog-grid"></div>
+          <div id="daily-filter-bar" class="subcat-filter-pills"></div>
+          <div id="pc-daily-list"></div>
         </div>
 
         <!-- 非デイリータブ -->
         <div id="tab-nondaily" class="tab-pane">
           <div class="catalog-notice nondaily-notice">
-            🍪 <b>非デイリー専用商品</b> (お菓子・ドリンク): 常温品のため、必ず<b>「商品棚(非デイリー専用)」</b>にのみ陳列できます。
+            <span class="notice-icon">🍪</span>
+            <div>
+              <b>常温非デイリー商品 (菓子・飲料):</b> お菓子は<b>「商品棚」</b>、ドリンクは<b>「商品棚」</b>または<b>「ドリンク専用冷蔵庫」</b>に陳列できます。
+            </div>
           </div>
-          <div id="pc-nondaily-list" class="catalog-grid"></div>
+          <div id="nondaily-filter-bar" class="subcat-filter-pills"></div>
+          <div id="pc-nondaily-list"></div>
         </div>
 
         <!-- スタッフタブ -->
         <div id="tab-staff" class="tab-pane">
-          <div class="catalog-notice">
-            店舗で働く従業員を雇用できます。雇用すると制服を着たスタッフが店内に可視化配置されます。
+          <div class="catalog-notice staff-notice">
+            <span class="notice-icon">👔</span>
+            <div>
+              <b>店舗スタッフ雇用:</b> アルバイト従業員を雇用できます。雇用すると緑色のコンビニ制服を着たスタッフが店内に常駐・可視化配置されます。
+            </div>
           </div>
           <div id="pc-employee-list" class="catalog-grid"></div>
         </div>
@@ -352,16 +400,17 @@
           <div class="step-num">1</div>
           <div class="step-content">
             <h4>最初は何もない空っぽの店舗からスタート！</h4>
-            <p>最初は売場に棚もレジもありません。右手の<b>「事務所」</b>にある店舗管理PC（<kbd>TAB</kbd>）から「レジカウンター」や「商品棚」「冷蔵棚」を発注すると、<b>左手のバックヤード奥（勝手口）を出た「配達エリア」にダンボール箱が届きます</b>。箱を運び、売場に自由に配置しましょう。</p>
+            <p>最初は売場に棚もレジもありません。右手の<b>「事務所」</b>にある店舗管理PC（<kbd>TAB</kbd>）から「レジカウンター」や「商品棚」「冷蔵棚」「ドリンク専用冷蔵庫」「ゴミ箱」を発注すると、<b>左手のバックヤード奥（勝手口）を出た「配達エリア」にダンボール箱が届きます</b>。箱を運び、売場に自由に配置しましょう。</p>
           </div>
         </div>
 
         <div class="step-card">
           <div class="step-num">2</div>
           <div class="step-content">
-            <h4>商品を発注して棚に陳列！</h4>
-            <p>管理PCから商品を発注すると、<b>裏の「配達エリア」にダンボール箱が届きます</b>。<kbd>E</kbd> で箱を持ち、売場の棚に近づいて <kbd>左クリック</kbd> で陳列します。<br>
-            ⚠️ <b>デイリー商品 (米飯・パン)</b> は「冷蔵棚」に、<b>非デイリー商品 (お菓子・ドリンク)</b> は「商品棚」にしか置けません！</p>
+            <h4>ライセンスを取得して商品を発注・棚に陳列！</h4>
+            <p>商品を発注するには各カテゴリー（お菓子・ドリンク・パン・米飯）の<b>「販売ライセンス」</b>が必要です。管理PC（<kbd>TAB</kbd>）のライセンスタブまたは商品タブから取得すると、該当ジャンルの商品が一括で発注可能になります！<br>
+            発注すると<b>裏の「配達エリア」にダンボール箱が届きます</b>。<kbd>E</kbd> で箱を持ち、<kbd>左クリック</kbd> で箱を開封し、売場の棚に近づいて <kbd>左クリック</kbd> で1個ずつ陳列します。<br>
+            ⚠️ <b>デイリー商品 (米飯・パン)</b> は「冷蔵棚」、<b>飲料商品</b>は「ドリンク専用冷蔵庫」または「商品棚」、<b>お菓子</b>は「商品棚」に陳列できます！空き箱はゴミ箱に向かって <kbd>Q</kbd> キーで廃棄できます。</p>
           </div>
         </div>
 
